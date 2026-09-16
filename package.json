@@ -1,0 +1,19 @@
+{
+  "name": "app-systemizer",
+  "private": true,
+  "version": "1.2.8",
+  "type": "module",
+  "scripts": {
+    "build": "node tools/build.mjs",
+    "package": "npm run build && node tools/package.mjs"
+  },
+  "appSystemizer": {
+    "id": "app-systemizer",
+    "name": "App Systemizer",
+    "timeZone": "Asia/Shanghai"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "kernelsu": "3.0.2"
+  }
+}

@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="zh-CN" class="theme-md3">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="color-scheme" content="light dark">
+    <title>系统应用转换</title>
+    <link rel="stylesheet" href="/internal/insets.css">
+    <link rel="stylesheet" href="app.css">
+  </head>
+  <body data-tab="apps">
+    <header class="top-bar">
+      <h1 class="top-bar__title">系统应用转换</h1>
+      <button id="reboot" class="icon-action" aria-label="立即重启设备" title="重启">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v8M6.3 6.6a8 8 0 1 0 11.4 0"/></svg>
+      </button>
+    </header>
+    <div class="page" id="page">
+      <main class="shell">
+        <section id="panel-apps" class="panel" data-panel="apps">
+          <section class="card status-card" id="status-card" data-state="loading">
+            <span class="status-card__dot" aria-hidden="true"></span>
+            <div class="status-card__text">
+              <span class="status-card__label" id="status-label">正在检查挂载状态…</span>
+              <span id="mount-status" class="status-card__summary">勾选应用后保存，重启时由 Magic Mount-rs 将模块的 system 目录挂载到 /system。</span>
+            </div>
+          </section>
+
+          <section class="controls">
+            <label class="search-bar">
+              <svg class="search-bar__icon nav-icon--filled" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 3a7.5 7.5 0 0 1 5.9 12.1l4 4a1.2 1.2 0 0 1-1.7 1.7l-4-4A7.5 7.5 0 1 1 10.5 3Zm0 2.2a5.3 5.3 0 1 0 0 10.6 5.3 5.3 0 0 0 0-10.6Z"/></svg>
+              <svg class="search-bar__icon nav-icon--outline" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg>
+              <input id="search" type="search" placeholder="搜索名称或包名" autocomplete="off">
+            </label>
+            <div class="target-select">
+              <span id="target-label" class="target-select__label">目标目录</span>
+              <button id="target-default" class="target-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="target-menu" aria-labelledby="target-label target-value">
+                <span id="target-value">/system/app</span>
+                <svg class="target-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
+              </button>
+              <div id="target-menu" class="target-menu" role="listbox" aria-labelledby="target-label" hidden>
+                <button class="target-option" type="button" role="option" aria-selected="true" data-value="app" tabindex="-1">
+                  <span>/system/app</span><svg class="target-check" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+                </button>
+                <button class="target-option" type="button" role="option" aria-selected="false" data-value="priv-app" tabindex="-1">
+                  <span>/system/priv-app</span><svg class="target-check" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <section class="summary-row">
+            <span id="count">正在读取应用…</span>
+            <div class="summary-row__actions">
+              <button id="select-visible" class="outline-button">选择当前结果</button>
+              <button id="clear-selection" class="text-button" disabled>清空选择</button>
+            </div>
+          </section>
+
+          <section id="app-list" class="card app-list" aria-live="polite"></section>
+        </section>
+        <section id="panel-logs" class="panel" data-panel="logs" hidden>
+          <div class="panel-head">
+            <div class="panel-head__text">
+              <h2>运行日志</h2>
+            </div>
+            <div class="panel-head__actions">
+              <button id="log-refresh" class="outline-button">刷新状态</button>
+              <button id="log-clear" class="text-button">清空</button>
+            </div>
+          </div>
+          <div id="log-list" class="card log-list"></div>
+        </section>
+        <section id="panel-settings" class="panel" data-panel="settings" hidden>
+          <h2 class="group-title">外观</h2>
+
+          <section id="theme-picker" class="card setting-card" data-theme-menu="false">
+            <div class="setting-card__head">
+              <span id="theme-label" class="setting-card__title">UI 风格</span>
+              <button id="miuix-theme-trigger" class="miuix-theme-trigger" type="button" aria-labelledby="theme-label miuix-theme-value" aria-haspopup="listbox" aria-expanded="false" aria-controls="theme-options">
+                <span id="miuix-theme-value">Miuix</span>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 9 5-5 5 5M7 15l5 5 5-5"/></svg>
+              </button>
+            </div>
+            <div id="theme-options" class="option-grid" aria-labelledby="theme-label">
+              <button class="option-tile" data-theme-option="md3">
+                <span class="option-tile__icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 3.2a6.8 6.8 0 1 1 0 13.6 6.8 6.8 0 0 1 0-13.6Zm0 3a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6Z"/></svg></span>
+                <span class="option-tile__label">Material 3</span>
+              </button>
+              <button class="option-tile" data-theme-option="miuix">
+                <span class="option-tile__icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-10 10 10 10 0 0 0 10 10V2Z"/><path d="M13.5 2.6v18.8a10 10 0 0 0 0-18.8Z" opacity=".55"/></svg></span>
+                <span class="option-tile__label">Miuix</span>
+              </button>
+            </div>
+          </section>
+
+          <h2 class="group-title">日志</h2>
+          <section class="card switch-row">
+            <div class="switch-row__text">
+              <span class="setting-card__title">显示日志</span>
+            </div>
+            <label class="switch">
+              <input id="log-enabled" type="checkbox" aria-label="显示日志">
+              <span class="switch__track"><span class="switch__thumb"></span></span>
+            </label>
+          </section>
+
+          <h2 class="group-title">关于</h2>
+          <section class="card info-rows">
+            <div class="info-row"><span>模块版本</span><span id="info-version">—</span></div>
+            <div class="info-row"><span>数据目录</span><span id="info-data-dir" class="mono">/data/adb/app-systemizer</span></div>
+            <div class="info-row"><span>选择清单</span><span class="mono">config/selections.tsv</span></div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <div id="pull-indicator" class="pull-indicator" aria-hidden="true">
+      <span class="pull-indicator__spinner"></span>
+      <span id="pull-text">下拉刷新</span>
+    </div>
+
+    <div class="save-bar" id="save-bar">
+      <span id="selection-summary">未选择应用</span>
+      <button id="save" class="primary-button" disabled>保存选择</button>
+    </div>
+
+    <nav class="bottom-nav" aria-label="页面切换">
+      <button class="nav-tab active" data-tab="apps">
+        <span class="nav-tab__icon"><svg class="nav-icon--filled" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 4.5c.28 0 .5.22.5.5v2h6v6h2c.28 0 .5.22.5.5s-.22.5-.5.5h-2v6h-2.12c-.68-1.75-2.39-3-4.38-3s-3.7 1.25-4.38 3H4v-2.12c1.75-.68 3-2.39 3-4.38 0-1.99-1.24-3.7-2.99-4.38L4 7h6V5c0-.28.22-.5.5-.5m0-2C9.12 2.5 8 3.62 8 5H4c-1.1 0-1.99.9-1.99 2v3.8h.29c1.49 0 2.7 1.21 2.7 2.7s-1.21 2.7-2.7 2.7H2V20c0 1.1.9 2 2 2h3.8v-.3c0-1.49 1.21-2.7 2.7-2.7s2.7 1.21 2.7 2.7v.3H17c1.1 0 2-.9 2-2v-4c1.38 0 2.5-1.12 2.5-2.5S20.38 11 19 11V7c0-1.1-.9-2-2-2h-4c0-1.38-1.12-2.5-2.5-2.5z"/></svg><svg class="nav-icon--outline" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="6.5" height="6.5" rx="1.5"/><rect x="14" y="3.5" width="6.5" height="6.5" rx="1.5"/><rect x="3.5" y="14" width="6.5" height="6.5" rx="1.5"/><rect x="14" y="14" width="6.5" height="6.5" rx="1.5"/></svg></span>
+        <span class="nav-tab__label">应用</span>
+      </button>
+      <button class="nav-tab" data-tab="logs">
+        <span class="nav-tab__icon"><svg class="nav-icon--filled" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zm2 16H8v-2h8zm0-4H8v-2h8zM13 9V3.5L18.5 9z"/></svg><svg class="nav-icon--outline" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.5h7L18.5 9v11.5H6zM13 3.5V9h5.5M9 13h6M9 16.5h6"/></svg></span>
+        <span class="nav-tab__label">日志</span>
+      </button>
+      <button class="nav-tab" data-tab="settings">
+        <span class="nav-tab__icon"><svg class="nav-icon--filled" viewBox="0 0 24 24" aria-hidden="true"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.5.5 0 0 0 .12-.61l-1.92-3.32a.5.5 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.48.48 0 0 0-.48-.41h-3.84c-.24 0-.44.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.5.5 0 0 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.5.5 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.5.5 0 0 0-.12-.61zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z"/></svg><svg class="nav-icon--outline" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2.5 8 4.75v9.5l-8 4.75-8-4.75v-9.5z"/><circle cx="12" cy="12" r="3.25"/></svg></span>
+        <span class="nav-tab__label">设置</span>
+      </button>
+    </nav>
+    <dialog id="reboot-dialog" class="modal">
+      <div class="modal__inner">
+        <h2 class="modal__title">重启系统？</h2>
+        <p class="modal__body">确定要重启设备吗？</p>
+        <div class="modal__actions">
+          <button id="reboot-cancel" class="modal__button">取消</button>
+          <button id="reboot-confirm" class="modal__button modal__button--primary">确认</button>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog id="confirm-dialog" class="modal">
+      <div class="modal__inner">
+        <h2 class="modal__title">确认写入模块配置</h2>
+        <p id="confirm-text" class="modal__body"></p>
+        <p class="modal__warn">保存会复制所选应用的 base APK 与 split APK 到模块数据目录，由 Magic Mount-rs 在重启后挂载，系统重新扫描后生效。</p>
+        <pre id="confirm-error" class="modal__error" hidden></pre>
+        <div class="modal__actions">
+          <button id="cancel" class="modal__button">取消</button>
+          <button id="confirm" class="modal__button modal__button--primary">保存并等待重启</button>
+        </div>
+      </div>
+    </dialog>
+
+    <script type="module" src="bundle.js"></script>
+  </body>
+</html>

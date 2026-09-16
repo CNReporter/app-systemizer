@@ -1,0 +1,6 @@
+id=app-systemizer
+name=App Systemizer
+version=1.2.8(260916)
+versionCode=260916
+author=Leon
+description=通过挂载机制将选定应用转为系统应用。当前已挂载:[]。

@@ -25,10 +25,5 @@ WebUI 读取用户应用，用户选择应用和目标目录后保存。模块�
     npm ci
     npm run package
 
-`tools/build.mjs` 按 Asia/Shanghai 当天日期生成 `YYMMDD` 格式的 versionCode，并同步 `module.prop`、WebUI 版本信息和 `bundle.js`。模块版本格式为 `<语义版本>(<日期版本码>)`。
-
-当前源码版本为 `1.2.8`；本次构建日期版本码由构建脚本生成。安装包输出到 `dist/App-Systemizer-KSU-v<版本>.zip`，模块文件位于 ZIP 根目录。
-
-## 迁移说明
-
-模块 id 为 `app-systemizer`，名称为 `App Systemizer`。新版本会优先使用新 id 的配置；如果没有，则迁移旧模块的选择清单、应用名称和暂存 APK，并禁用旧模块，避免重复挂载。旧 id 和旧 localStorage 键仅保留用于一次性兼容迁移。
+## PS
+仅在本人两部 Android 17的 HyperOS 4设备上测试，推荐使用 ReSukiSU。

@@ -25,5 +25,13 @@ WebUI 读取用户应用，用户选择应用和目标目录后保存。模块�
     npm ci
     npm run package
 
+## 版本号
+
+`module.prop` 里的 `version` 使用[语义化版本](https://semver.org/lang/zh-CN/)：`MAJOR.MINOR.PATCH+YYYYMMDD`，例如 `1.3.1+20261026`。核心版本在 `package.json` 里维护，`+` 之后是 Asia/Shanghai 的构建日期，作为语义化版本的构建元数据，按规范不参与版本优先级比较。
+
+`versionCode` 是同一日期的八位整数 `YYYYMMDD`（如 `20261026`）。安装器只比较这个整数，所以它按日期单调递增；早期版本用过六位的 `YYMMDD`（`260916`、`261026`），八位日期都比它们大，升级不会被判成降级。
+
+发版只改 `package.json` 的版本号再执行 `npm run package`，`module.prop`、`webroot/module-info.json` 和 `dist/` 里的 ZIP 文件名会一起更新。
+
 ## PS
 仅在本人两部 Android 17的 HyperOS 4设备上测试，推荐使用 ReSukiSU。

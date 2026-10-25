@@ -82,57 +82,42 @@ function writeStorage(key, value) {
 }
 
 function applyTheme() {
-  const root = document.documentElement;
-  root.classList.remove('theme-miuix', 'theme-md3');
-  root.classList.add(`theme-${state.theme}`);
+  document.documentElement.dataset.theme = state.theme;
   applySystemColors();
-  closeThemeMenu();
-  $('#theme-options').setAttribute('role', state.theme === 'miuix' ? 'listbox' : 'group');
   document.querySelectorAll('[data-theme-option]').forEach((button) => {
-    button.classList.toggle('active', button.dataset.themeOption === state.theme);
-    button.setAttribute('role', state.theme === 'miuix' ? 'option' : 'button');
-    if (state.theme === 'miuix') {
-      button.setAttribute('aria-selected', String(button.dataset.themeOption === state.theme));
-      button.removeAttribute('aria-pressed');
-    } else {
-      button.setAttribute('aria-pressed', String(button.dataset.themeOption === state.theme));
-      button.removeAttribute('aria-selected');
-    }
+    const active = button.dataset.themeOption === state.theme;
+    button.setAttribute('aria-checked', String(active));
+    // Roving tabindex keeps the whole group to a single tab stop.
+    button.tabIndex = active ? 0 : -1;
   });
 }
 
-function closeThemeMenu({ restoreFocus = false } = {}) {
-  $('#theme-picker').dataset.themeMenu = 'false';
-  $('#miuix-theme-trigger').setAttribute('aria-expanded', 'false');
-  if (restoreFocus && state.theme === 'miuix') $('#miuix-theme-trigger').focus();
-}
-
-function initThemeMenu() {
-  const picker = $('#theme-picker');
-  const trigger = $('#miuix-theme-trigger');
-  const options = [...picker.querySelectorAll('[data-theme-option]')];
-  const open = () => {
-    picker.dataset.themeMenu = 'true';
-    trigger.setAttribute('aria-expanded', 'true');
-    options.find(option => option.dataset.themeOption === state.theme).focus({ preventScroll: true });
+function initThemePicker() {
+  const options = [...document.querySelectorAll('[data-theme-option]')];
+  const select = (option, { focus = false } = {}) => {
+    state.theme = option.dataset.themeOption;
+    writeStorage(`${appSystemizer.id}-theme`, state.theme);
+    applyTheme();
+    if (focus) option.focus({ preventScroll: true });
+    log('info', `UI 风格切换为 ${state.theme === 'md3' ? 'Material 3' : 'Miuix'}`);
   };
-  trigger.addEventListener('click', () => picker.dataset.themeMenu === 'true' ? closeThemeMenu() : open());
-  trigger.addEventListener('keydown', event => {
-    if (['ArrowDown', 'ArrowUp'].includes(event.key)) { event.preventDefault(); open(); }
+  for (const option of options) {
+    option.addEventListener('click', () => select(option));
+  }
+  $('#theme-options').addEventListener('keydown', (event) => {
+    const current = options.indexOf(document.activeElement);
+    if (current === -1) return;
+    const last = options.length - 1;
+    let next;
+    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') next = current === last ? 0 : current + 1;
+    else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') next = current === 0 ? last : current - 1;
+    else if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = last;
+    else return;
+    event.preventDefault();
+    // A radio group moves the selection with focus, like a native radio set.
+    select(options[next], { focus: true });
   });
-  $('#theme-options').addEventListener('keydown', event => {
-    if (state.theme !== 'miuix') return;
-    if (event.key === 'Escape') { event.preventDefault(); closeThemeMenu({ restoreFocus: true }); }
-    if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
-      event.preventDefault();
-      const current = options.indexOf(document.activeElement);
-      const next = event.key === 'Home' ? 0 : event.key === 'End' ? options.length - 1
-        : (current + (event.key === 'ArrowDown' ? 1 : -1) + options.length) % options.length;
-      options[next].focus({ preventScroll: true });
-    }
-  });
-  document.addEventListener('pointerdown', event => { if (!picker.contains(event.target)) closeThemeMenu(); });
-  document.addEventListener('focusin', event => { if (!picker.contains(event.target)) closeThemeMenu(); });
 }
 
 function initSettings() {
@@ -141,15 +126,6 @@ function initSettings() {
   state.logEnabled = readStorage(`${appSystemizer.id}-log-enabled`, '0') === '1';
 
   applyTheme();
-  document.querySelectorAll('[data-theme-option]').forEach((button) => {
-    button.addEventListener('click', () => {
-      state.theme = button.dataset.themeOption;
-      writeStorage(`${appSystemizer.id}-theme`, state.theme);
-      applyTheme();
-      if (state.theme === 'miuix') $('#miuix-theme-trigger').focus({ preventScroll: true });
-      log('info', `UI 风格切换为 ${state.theme === 'md3' ? 'Material 3' : 'Miuix'}`);
-    });
-  });
   const logSwitch = $('#log-enabled');
   logSwitch.checked = state.logEnabled;
   logSwitch.addEventListener('change', () => {
@@ -169,10 +145,12 @@ function initSettings() {
 
 function switchTab(name) {
   closeTargetMenu();
-  closeThemeMenu();
   document.body.dataset.tab = name;
   document.querySelectorAll('.nav-tab').forEach((button) => {
-    button.classList.toggle('active', button.dataset.tab === name);
+    const active = button.dataset.tab === name;
+    button.classList.toggle('active', active);
+    if (active) button.setAttribute('aria-current', 'page');
+    else button.removeAttribute('aria-current');
   });
   document.querySelectorAll('.panel').forEach((panel) => {
     panel.hidden = panel.dataset.panel !== name;
@@ -336,7 +314,12 @@ function initPullGesture() {
 }
 
 function encodeBase64(value) {
-  return btoa(unescape(encodeURIComponent(value)));
+  // btoa() only accepts Latin-1, so encode the UTF-8 bytes ourselves instead
+  // of relying on the deprecated unescape() round-trip.
+  const bytes = new TextEncoder().encode(value);
+  let binary = '';
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary);
 }
 
 function selectionLines() {
@@ -494,15 +477,18 @@ function render() {
   const fragment = document.createDocumentFragment();
   for (const app of apps) {
     const selectedTarget = state.selected.get(app.packageName);
+    // A stock system package can never be promoted; promoted ones stay
+    // editable so they can be unselected without clearing everything.
+    const locked = app.isSystem && !state.saved.has(app.packageName);
     const row = document.createElement('div');
     row.className = `app ${selectedTarget ? 'selected' : ''}`;
-    row.setAttribute('role', 'button');
+    row.setAttribute('role', 'checkbox');
+    row.setAttribute('aria-checked', String(Boolean(selectedTarget)));
+    if (locked) row.setAttribute('aria-disabled', 'true');
     row.setAttribute('tabindex', '0');
     const toggle = () => {
       const nowSelected = state.selected.has(app.packageName);
-      // A stock system package can never be promoted; promoted ones stay
-      // editable so they can be unselected without clearing everything.
-      if (!nowSelected && app.isSystem && !state.saved.has(app.packageName)) return;
+      if (!nowSelected && locked) return;
       if (nowSelected) state.selected.delete(app.packageName);
       else state.selected.set(app.packageName, state.defaultTarget);
       refreshSummary(); render();
@@ -613,8 +599,25 @@ $('#log-refresh').addEventListener('click', async () => {
 });
 
 $('#save').addEventListener('click', () => {
-  const apps = [...state.selected.entries()].map(([pkg, target]) => `${pkg} → ${targetLabel(target)}`);
-  $('#confirm-text').textContent = `将准备 ${apps.length} 个应用：${apps.slice(0, 3).join('、')}${apps.length > 3 ? '…' : ''}`;
+  const entries = [...state.selected.entries()];
+  const text = $('#confirm-text');
+  const heading = document.createElement('span');
+  heading.textContent = `将准备 ${entries.length} 个应用：`;
+  const rows = document.createElement('span');
+  rows.className = 'confirm-list';
+  for (const [pkg, target] of entries) {
+    const row = document.createElement('span');
+    row.className = 'confirm-line';
+    const name = document.createElement('span');
+    name.className = 'confirm-line__pkg';
+    name.textContent = pkg;
+    const place = document.createElement('span');
+    place.className = 'confirm-line__target';
+    place.textContent = targetLabel(target);
+    row.append(name, place);
+    rows.append(row);
+  }
+  text.replaceChildren(heading, rows);
   $('#confirm-error').hidden = true;
   $('#confirm-error').textContent = '';
   $('#confirm').textContent = '保存并等待重启';
@@ -681,7 +684,7 @@ wireModalDismiss($('#confirm-dialog'));
 $('#info-version').textContent = appSystemizer.version;
 $('#info-data-dir').textContent = `/data/adb/${appSystemizer.id}`;
 initSettings();
-initThemeMenu();
+initThemePicker();
 initSystemColors();
 initTargetMenu();
 renderLogs();

@@ -80,8 +80,8 @@ function getPackagesInfo(packages) {
 var module_info_default = {
   id: "app-systemizer",
   name: "App Systemizer",
-  version: "1.2.8(260916)",
-  versionCode: 260916
+  version: "1.3.0(261026)",
+  versionCode: 261026
 };
 
 // module/webroot/system-colors.js
@@ -108,29 +108,28 @@ var roles = {
 var required = ["primary", "onPrimary", "primaryContainer", "onPrimaryContainer", "secondaryContainer", "onSecondaryContainer"];
 var accentProperties = {
   "--primary": "primary",
-  "--on-primary": "onPrimary",
-  "--on-change-bg": "primaryContainer",
-  "--app-selected-bg": "primaryContainer",
-  "--secondary-container": "secondaryContainer",
-  "--on-secondary-container": "onSecondaryContainer"
+  "--on-primary": "onPrimary"
 };
 var materialProperties = {
-  "--bg": "background",
-  "--surface": "surface",
+  "--primary-container": "primaryContainer",
+  "--on-primary-container": "onPrimaryContainer",
+  "--accent-soft": "secondaryContainer",
+  "--on-accent-soft": "onSecondaryContainer",
+  "--bg": "surface",
   "--surface-container": "surfaceContainer",
-  "--surface-hover": "surfaceContainerHighest",
-  "--menu-surface": "surfaceContainerHigh",
+  "--surface-container-high": "surfaceContainerHigh",
   "--text": "onSurface",
-  "--text-secondary": "onSurfaceVariant",
-  "--text-tertiary": "outline",
+  "--text-2": "onSurfaceVariant",
+  "--text-3": "outline",
   "--divider": "outlineVariant",
   "--outline": "outline",
   "--danger": "error",
-  "--danger-bg": "errorContainer",
-  "--switch-track": "outlineVariant",
-  "--switch-thumb": "onSurfaceVariant"
+  "--danger-soft": "errorContainer",
+  "--on-danger-soft": "onErrorContainer",
+  "--switch-track": "surfaceContainerHighest",
+  "--switch-thumb": "outline"
 };
-var ownedProperties = [...Object.keys(accentProperties), ...Object.keys(materialProperties), "--primary-hover", "--menu-pressed"];
+var ownedProperties = [...Object.keys(accentProperties), ...Object.keys(materialProperties)];
 var palettes = /* @__PURE__ */ new Map();
 var colorScheme;
 var requestId = 0;
@@ -208,15 +207,15 @@ function applySystemColors() {
   for (const property of ownedProperties) root.style.removeProperty(property);
   delete root.dataset.systemColors;
   if (!colorScheme) return;
-  if (!root.classList.contains("theme-md3")) return;
   const palette = palettes.get(colorScheme.matches);
   if (!palette) return;
-  const properties = { ...accentProperties, ...materialProperties };
+  const properties = {
+    ...accentProperties,
+    ...root.dataset.theme === "md3" ? materialProperties : {}
+  };
   for (const [property, role] of Object.entries(properties)) {
     if (palette.colors[role]) root.style.setProperty(property, palette.colors[role]);
   }
-  root.style.setProperty("--primary-hover", "color-mix(in srgb, var(--primary) 88%, var(--on-primary))");
-  root.style.setProperty("--menu-pressed", "color-mix(in srgb, var(--primary) 24%, var(--secondary-container))");
   root.dataset.systemColors = palette.source;
 }
 async function refreshSystemColors() {
@@ -328,63 +327,38 @@ function writeStorage(key, value) {
   }
 }
 function applyTheme() {
-  const root = document.documentElement;
-  root.classList.remove("theme-miuix", "theme-md3");
-  root.classList.add(`theme-${state.theme}`);
+  document.documentElement.dataset.theme = state.theme;
   applySystemColors();
-  closeThemeMenu();
-  $("#theme-options").setAttribute("role", state.theme === "miuix" ? "listbox" : "group");
   document.querySelectorAll("[data-theme-option]").forEach((button) => {
-    button.classList.toggle("active", button.dataset.themeOption === state.theme);
-    button.setAttribute("role", state.theme === "miuix" ? "option" : "button");
-    if (state.theme === "miuix") {
-      button.setAttribute("aria-selected", String(button.dataset.themeOption === state.theme));
-      button.removeAttribute("aria-pressed");
-    } else {
-      button.setAttribute("aria-pressed", String(button.dataset.themeOption === state.theme));
-      button.removeAttribute("aria-selected");
-    }
+    const active = button.dataset.themeOption === state.theme;
+    button.setAttribute("aria-checked", String(active));
+    button.tabIndex = active ? 0 : -1;
   });
 }
-function closeThemeMenu({ restoreFocus = false } = {}) {
-  $("#theme-picker").dataset.themeMenu = "false";
-  $("#miuix-theme-trigger").setAttribute("aria-expanded", "false");
-  if (restoreFocus && state.theme === "miuix") $("#miuix-theme-trigger").focus();
-}
-function initThemeMenu() {
-  const picker = $("#theme-picker");
-  const trigger = $("#miuix-theme-trigger");
-  const options = [...picker.querySelectorAll("[data-theme-option]")];
-  const open = () => {
-    picker.dataset.themeMenu = "true";
-    trigger.setAttribute("aria-expanded", "true");
-    options.find((option) => option.dataset.themeOption === state.theme).focus({ preventScroll: true });
+function initThemePicker() {
+  const options = [...document.querySelectorAll("[data-theme-option]")];
+  const select = (option, { focus = false } = {}) => {
+    state.theme = option.dataset.themeOption;
+    writeStorage(`${module_info_default.id}-theme`, state.theme);
+    applyTheme();
+    if (focus) option.focus({ preventScroll: true });
+    log("info", `UI \u98CE\u683C\u5207\u6362\u4E3A ${state.theme === "md3" ? "Material 3" : "Miuix"}`);
   };
-  trigger.addEventListener("click", () => picker.dataset.themeMenu === "true" ? closeThemeMenu() : open());
-  trigger.addEventListener("keydown", (event) => {
-    if (["ArrowDown", "ArrowUp"].includes(event.key)) {
-      event.preventDefault();
-      open();
-    }
-  });
+  for (const option of options) {
+    option.addEventListener("click", () => select(option));
+  }
   $("#theme-options").addEventListener("keydown", (event) => {
-    if (state.theme !== "miuix") return;
-    if (event.key === "Escape") {
-      event.preventDefault();
-      closeThemeMenu({ restoreFocus: true });
-    }
-    if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
-      event.preventDefault();
-      const current = options.indexOf(document.activeElement);
-      const next = event.key === "Home" ? 0 : event.key === "End" ? options.length - 1 : (current + (event.key === "ArrowDown" ? 1 : -1) + options.length) % options.length;
-      options[next].focus({ preventScroll: true });
-    }
-  });
-  document.addEventListener("pointerdown", (event) => {
-    if (!picker.contains(event.target)) closeThemeMenu();
-  });
-  document.addEventListener("focusin", (event) => {
-    if (!picker.contains(event.target)) closeThemeMenu();
+    const current = options.indexOf(document.activeElement);
+    if (current === -1) return;
+    const last = options.length - 1;
+    let next;
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") next = current === last ? 0 : current + 1;
+    else if (event.key === "ArrowLeft" || event.key === "ArrowUp") next = current === 0 ? last : current - 1;
+    else if (event.key === "Home") next = 0;
+    else if (event.key === "End") next = last;
+    else return;
+    event.preventDefault();
+    select(options[next], { focus: true });
   });
 }
 function initSettings() {
@@ -392,15 +366,6 @@ function initSettings() {
   state.theme = savedTheme === "miuix" ? "miuix" : "md3";
   state.logEnabled = readStorage(`${module_info_default.id}-log-enabled`, "0") === "1";
   applyTheme();
-  document.querySelectorAll("[data-theme-option]").forEach((button) => {
-    button.addEventListener("click", () => {
-      state.theme = button.dataset.themeOption;
-      writeStorage(`${module_info_default.id}-theme`, state.theme);
-      applyTheme();
-      if (state.theme === "miuix") $("#miuix-theme-trigger").focus({ preventScroll: true });
-      log("info", `UI \u98CE\u683C\u5207\u6362\u4E3A ${state.theme === "md3" ? "Material 3" : "Miuix"}`);
-    });
-  });
   const logSwitch = $("#log-enabled");
   logSwitch.checked = state.logEnabled;
   logSwitch.addEventListener("change", () => {
@@ -418,10 +383,12 @@ function initSettings() {
 }
 function switchTab(name) {
   closeTargetMenu();
-  closeThemeMenu();
   document.body.dataset.tab = name;
   document.querySelectorAll(".nav-tab").forEach((button) => {
-    button.classList.toggle("active", button.dataset.tab === name);
+    const active = button.dataset.tab === name;
+    button.classList.toggle("active", active);
+    if (active) button.setAttribute("aria-current", "page");
+    else button.removeAttribute("aria-current");
   });
   document.querySelectorAll(".panel").forEach((panel) => {
     panel.hidden = panel.dataset.panel !== name;
@@ -579,7 +546,10 @@ function initPullGesture() {
   });
 }
 function encodeBase64(value) {
-  return btoa(unescape(encodeURIComponent(value)));
+  const bytes = new TextEncoder().encode(value);
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary);
 }
 function selectionLines() {
   const labels = new Map(state.apps.map((app) => [app.packageName, app.appLabel || "\u672A\u547D\u540D\u5E94\u7528"]));
@@ -724,13 +694,16 @@ function render() {
   const fragment = document.createDocumentFragment();
   for (const app of apps) {
     const selectedTarget = state.selected.get(app.packageName);
+    const locked = app.isSystem && !state.saved.has(app.packageName);
     const row = document.createElement("div");
     row.className = `app ${selectedTarget ? "selected" : ""}`;
-    row.setAttribute("role", "button");
+    row.setAttribute("role", "checkbox");
+    row.setAttribute("aria-checked", String(Boolean(selectedTarget)));
+    if (locked) row.setAttribute("aria-disabled", "true");
     row.setAttribute("tabindex", "0");
     const toggle = () => {
       const nowSelected = state.selected.has(app.packageName);
-      if (!nowSelected && app.isSystem && !state.saved.has(app.packageName)) return;
+      if (!nowSelected && locked) return;
       if (nowSelected) state.selected.delete(app.packageName);
       else state.selected.set(app.packageName, state.defaultTarget);
       refreshSummary();
@@ -854,8 +827,25 @@ $("#log-refresh").addEventListener("click", async () => {
   toast("\u5DF2\u5237\u65B0\u6302\u8F7D\u72B6\u6001");
 });
 $("#save").addEventListener("click", () => {
-  const apps = [...state.selected.entries()].map(([pkg, target]) => `${pkg} \u2192 ${targetLabel(target)}`);
-  $("#confirm-text").textContent = `\u5C06\u51C6\u5907 ${apps.length} \u4E2A\u5E94\u7528\uFF1A${apps.slice(0, 3).join("\u3001")}${apps.length > 3 ? "\u2026" : ""}`;
+  const entries = [...state.selected.entries()];
+  const text = $("#confirm-text");
+  const heading = document.createElement("span");
+  heading.textContent = `\u5C06\u51C6\u5907 ${entries.length} \u4E2A\u5E94\u7528\uFF1A`;
+  const rows = document.createElement("span");
+  rows.className = "confirm-list";
+  for (const [pkg, target] of entries) {
+    const row = document.createElement("span");
+    row.className = "confirm-line";
+    const name = document.createElement("span");
+    name.className = "confirm-line__pkg";
+    name.textContent = pkg;
+    const place = document.createElement("span");
+    place.className = "confirm-line__target";
+    place.textContent = targetLabel(target);
+    row.append(name, place);
+    rows.append(row);
+  }
+  text.replaceChildren(heading, rows);
   $("#confirm-error").hidden = true;
   $("#confirm-error").textContent = "";
   $("#confirm").textContent = "\u4FDD\u5B58\u5E76\u7B49\u5F85\u91CD\u542F";
@@ -917,7 +907,7 @@ wireModalDismiss($("#confirm-dialog"));
 $("#info-version").textContent = module_info_default.version;
 $("#info-data-dir").textContent = `/data/adb/${module_info_default.id}`;
 initSettings();
-initThemeMenu();
+initThemePicker();
 initSystemColors();
 initTargetMenu();
 renderLogs();

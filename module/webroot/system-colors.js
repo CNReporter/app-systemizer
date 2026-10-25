@@ -15,20 +15,22 @@ const roles = {
   error: 'error', errorContainer: 'error_container', onErrorContainer: 'on_error_container',
 };
 const required = ['primary', 'onPrimary', 'primaryContainer', 'onPrimaryContainer', 'secondaryContainer', 'onSecondaryContainer'];
+// The accent is shared: Miuix keeps its own neutral surfaces and shapes but
+// still takes the system accent, while Material 3 maps the full palette.
 const accentProperties = {
   '--primary': 'primary', '--on-primary': 'onPrimary',
-  '--on-change-bg': 'primaryContainer', '--app-selected-bg': 'primaryContainer',
-  '--secondary-container': 'secondaryContainer', '--on-secondary-container': 'onSecondaryContainer',
 };
 const materialProperties = {
-  '--bg': 'background', '--surface': 'surface', '--surface-container': 'surfaceContainer',
-  '--surface-hover': 'surfaceContainerHighest', '--menu-surface': 'surfaceContainerHigh',
-  '--text': 'onSurface', '--text-secondary': 'onSurfaceVariant', '--text-tertiary': 'outline',
+  '--primary-container': 'primaryContainer', '--on-primary-container': 'onPrimaryContainer',
+  '--accent-soft': 'secondaryContainer', '--on-accent-soft': 'onSecondaryContainer',
+  '--bg': 'surface',
+  '--surface-container': 'surfaceContainer', '--surface-container-high': 'surfaceContainerHigh',
+  '--text': 'onSurface', '--text-2': 'onSurfaceVariant', '--text-3': 'outline',
   '--divider': 'outlineVariant', '--outline': 'outline',
-  '--danger': 'error', '--danger-bg': 'errorContainer',
-  '--switch-track': 'outlineVariant', '--switch-thumb': 'onSurfaceVariant',
+  '--danger': 'error', '--danger-soft': 'errorContainer', '--on-danger-soft': 'onErrorContainer',
+  '--switch-track': 'surfaceContainerHighest', '--switch-thumb': 'outline',
 };
-const ownedProperties = [...Object.keys(accentProperties), ...Object.keys(materialProperties), '--primary-hover', '--menu-pressed'];
+const ownedProperties = [...Object.keys(accentProperties), ...Object.keys(materialProperties)];
 const palettes = new Map();
 let colorScheme;
 let requestId = 0;
@@ -118,17 +120,15 @@ export function applySystemColors() {
   for (const property of ownedProperties) root.style.removeProperty(property);
   delete root.dataset.systemColors;
   if (!colorScheme) return;
-  // Miuix keeps its established blue theme. Only Material 3 consumes the
-  // Manager/Android Monet palette; both styles still follow light/dark CSS.
-  if (!root.classList.contains('theme-md3')) return;
   const palette = palettes.get(colorScheme.matches);
   if (!palette) return;
-  const properties = { ...accentProperties, ...materialProperties };
+  const properties = {
+    ...accentProperties,
+    ...(root.dataset.theme === 'md3' ? materialProperties : {}),
+  };
   for (const [property, role] of Object.entries(properties)) {
     if (palette.colors[role]) root.style.setProperty(property, palette.colors[role]);
   }
-  root.style.setProperty('--primary-hover', 'color-mix(in srgb, var(--primary) 88%, var(--on-primary))');
-  root.style.setProperty('--menu-pressed', 'color-mix(in srgb, var(--primary) 24%, var(--secondary-container))');
   root.dataset.systemColors = palette.source;
 }
 

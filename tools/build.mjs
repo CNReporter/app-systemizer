@@ -5,26 +5,22 @@ import { build } from 'esbuild';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const pkg = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8'));
-const { id, name, timeZone } = pkg.appSystemizer;
-// The display version is SemVer 2.0.0: the core version lives in package.json,
-// and the build date rides along as build metadata (`+<YYYYMMDD>`), which is
-// valid SemVer and, by spec, ignored for precedence — the core version alone
-// decides whether a release is newer.
-if (!/^\d+\.\d+\.\d+$/.test(pkg.version)) {
-  throw new Error(`package.json version must be a SemVer core version (MAJOR.MINOR.PATCH), got ${pkg.version}`);
+const { id, name } = pkg.appSystemizer;
+// The version is plain SemVer 2.0.0 and is maintained only in package.json.
+const match = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.exec(pkg.version);
+if (!match) {
+  throw new Error(`package.json version must be MAJOR.MINOR.PATCH without a prefix, got ${pkg.version}`);
 }
-const dateParts = new Intl.DateTimeFormat('en-US', {
-  timeZone, year: 'numeric', month: '2-digit', day: '2-digit',
-}).formatToParts(new Date());
-const date = Object.fromEntries(dateParts.map(({ type, value }) => [type, value]));
-// Version codes historically shipped as six-digit YYMMDD (260916, 261026), so
-// upgrades must be compared numerically rather than by digit count. The full
-// four-digit year is already larger than every such code and stays well inside
-// a signed 32-bit integer. KernelSU and package managers only compare this
-// integer, hence it keeps counting days even though the display version is
-// semantic.
-const versionCode = Number(`${date.year}${date.month}${date.day}`);
-const version = `${pkg.version}+${versionCode}`;
+const [major, minor, patch] = match.slice(1).map(Number);
+if (minor > 999 || patch > 999) {
+  throw new Error('MINOR and PATCH must each stay below 1000 so versionCode keeps the same shape');
+}
+// Installers compare this integer and nothing else, so it is derived from the
+// version alone: three decimal digits per component, e.g. 1.3.2 -> 1003002.
+// Ordering therefore always matches the version.
+const versionCode = major * 1_000_000 + minor * 1_000 + patch;
+if (versionCode > 2_147_483_647) throw new Error('versionCode exceeds the signed 32-bit range');
+const version = pkg.version;
 const metadata = { id, name, version, versionCode };
 const propPath = resolve(root, 'module/module.prop');
 let prop = readFileSync(propPath, 'utf8').replace(/\r\n/g, '\n');
@@ -41,4 +37,4 @@ await build({
   target: 'es2020',
   outfile: 'module/webroot/bundle.js',
 });
-console.log(`Built ${name} ${version} (${timeZone})`);
+console.log(`Built ${name} ${version} (versionCode ${versionCode})`);

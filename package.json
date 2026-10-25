@@ -1,7 +1,7 @@
 {
   "name": "app-systemizer",
   "private": true,
-  "version": "1.3.1",
+  "version": "1.3.2",
   "type": "module",
   "scripts": {
     "build": "node tools/build.mjs",
@@ -9,8 +9,7 @@
   },
   "appSystemizer": {
     "id": "app-systemizer",
-    "name": "App Systemizer",
-    "timeZone": "Asia/Shanghai"
+    "name": "App Systemizer"
   },
   "devDependencies": {
     "esbuild": "^0.25.0",

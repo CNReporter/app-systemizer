@@ -143,9 +143,14 @@ function initSettings() {
   });
 }
 
+const TAB_TITLES = { apps: '系统应用转换', logs: '运行日志', settings: '设置' };
+
 function switchTab(name) {
   closeTargetMenu();
   document.body.dataset.tab = name;
+  // Miuix collapses the bar to a small centred title, so it has to match the
+  // page it is above rather than keep the first page's name.
+  $('.top-bar__title').textContent = TAB_TITLES[name] || TAB_TITLES.apps;
   document.querySelectorAll('.nav-tab').forEach((button) => {
     const active = button.dataset.tab === name;
     button.classList.toggle('active', active);
@@ -157,6 +162,9 @@ function switchTab(name) {
   });
   if (name === 'logs') renderLogs();
   window.scrollTo(0, 0);
+  // scrollTo does not fire a scroll event when the page was already at the top,
+  // so reset the bar state explicitly.
+  $('.top-bar').dataset.scrolled = 'false';
 }
 
 const PULL_THRESHOLD = 40;
@@ -194,6 +202,27 @@ async function refreshAll() {
   } finally {
     state.refreshing = false;
   }
+}
+
+// The large page title scrolls with the content; the fixed bar only shows its
+// small copy once the page has moved. Driven here rather than by a CSS scroll
+// timeline so it also works in browsers without scroll-driven animations.
+function initTopBar() {
+  const bar = $('.top-bar');
+  const COLLAPSE_AT = 8;
+  let ticking = false;
+  const paint = () => {
+    ticking = false;
+    bar.dataset.scrolled = window.scrollY > COLLAPSE_AT ? 'true' : 'false';
+  };
+  const schedule = () => {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(paint);
+  };
+  window.addEventListener('scroll', schedule, { passive: true });
+  window.addEventListener('resize', schedule, { passive: true });
+  paint();
 }
 
 function initPullGesture() {
@@ -516,11 +545,11 @@ function render() {
     if (selectedTarget) {
       const side = document.createElement('div');
       side.className = 'side-badge target'; side.textContent = `本模块管理 · ${targetLabel(selectedTarget)}`;
-      row.append(side);
+      info.append(side);
     } else if (app.isSystem) {
       const side = document.createElement('div');
       side.className = 'side-badge badge'; side.textContent = '已是系统应用';
-      row.append(side);
+      info.append(side);
     }
     fragment.append(row);
   }
@@ -621,7 +650,7 @@ $('#save').addEventListener('click', () => {
   $('#confirm-error').hidden = true;
   $('#confirm-error').textContent = '';
   $('#confirm').textContent = '保存并等待重启';
-  $('#confirm-dialog').showModal();
+  openModal($('#confirm-dialog'));
 });
 $('#cancel').addEventListener('click', () => $('#confirm-dialog').close());
 $('#confirm').addEventListener('click', async () => {
@@ -659,6 +688,15 @@ function closeModal(dialog) {
   if (dialog && dialog.open) dialog.close();
 }
 
+// showModal() would focus the first button, which paints a focus ring on a
+// touch-first UI. Put the initial focus on the dialog itself (tabindex="-1");
+// Tab then moves into the actions as usual.
+function openModal(dialog) {
+  if (!dialog) return;
+  dialog.showModal();
+  dialog.focus();
+}
+
 function wireModalDismiss(dialog) {
   dialog.addEventListener('click', (event) => {
     if (event.target !== dialog) return;
@@ -667,7 +705,7 @@ function wireModalDismiss(dialog) {
 }
 
 $('#reboot').addEventListener('click', () => {
-  $('#reboot-dialog').showModal();
+  openModal($('#reboot-dialog'));
 });
 $('#reboot-cancel').addEventListener('click', () => closeModal($('#reboot-dialog')));
 $('#reboot-confirm').addEventListener('click', () => {
@@ -688,5 +726,6 @@ initThemePicker();
 initSystemColors();
 initTargetMenu();
 renderLogs();
+initTopBar();
 initPullGesture();
 loadApps();

@@ -6,32 +6,53 @@ import { exec } from 'kernelsu';
 const roles = {
   primary: 'primary', onPrimary: 'on_primary',
   primaryContainer: 'primary_container', onPrimaryContainer: 'on_primary_container',
+  secondary: 'secondary', onSecondary: 'on_secondary',
   secondaryContainer: 'secondary_container', onSecondaryContainer: 'on_secondary_container',
+  tertiary: 'tertiary', onTertiary: 'on_tertiary',
+  tertiaryContainer: 'tertiary_container', onTertiaryContainer: 'on_tertiary_container',
+  error: 'error', onError: 'on_error',
+  errorContainer: 'error_container', onErrorContainer: 'on_error_container',
   background: 'surface', surface: 'surface',
+  surfaceContainerLowest: 'surface_container_lowest',
+  surfaceContainerLow: 'surface_container_low',
   surfaceContainer: 'surface_container', surfaceContainerHigh: 'surface_container_high',
   surfaceContainerHighest: 'surface_container_highest',
+  surfaceVariant: 'surface_variant',
   onSurface: 'on_surface', onSurfaceVariant: 'on_surface_variant',
   outline: 'outline', outlineVariant: 'outline_variant',
-  error: 'error', errorContainer: 'error_container', onErrorContainer: 'on_error_container',
+  inverseSurface: 'inverse_surface', inverseOnSurface: 'inverse_on_surface',
 };
 const required = ['primary', 'onPrimary', 'primaryContainer', 'onPrimaryContainer', 'secondaryContainer', 'onSecondaryContainer'];
-// The accent is shared: Miuix keeps its own neutral surfaces and shapes but
-// still takes the system accent, while Material 3 maps the full palette.
-const accentProperties = {
-  '--primary': 'primary', '--on-primary': 'onPrimary',
-};
+// Material 3 maps the whole dynamic palette onto --sys-*. Miuix keeps its own
+// neutral surfaces and never reads --sys-*, so it only takes --accent-primary.
+// Which role feeds the accent depends on the appearance: Material 3's dark
+// primary is tone 80, a pastel meant as foreground on dark surfaces, and Miuix
+// pairs a vivid accent with white text instead. In dark mode its primary and
+// primaryContainer are both saturated (#277af7 / #338fe4), so the container
+// pair — the vivid fill with its matching pale foreground — is the analogous
+// mapping.
+const accentProperties = { '--accent-primary': 'primary', '--accent-on-primary': 'onPrimary' };
+const accentPropertiesDark = { '--accent-primary': 'primaryContainer', '--accent-on-primary': 'onPrimaryContainer' };
 const materialProperties = {
-  '--primary-container': 'primaryContainer', '--on-primary-container': 'onPrimaryContainer',
-  '--accent-soft': 'secondaryContainer', '--on-accent-soft': 'onSecondaryContainer',
-  '--bg': 'surface',
-  '--surface-container': 'surfaceContainer', '--surface-container-high': 'surfaceContainerHigh',
-  '--text': 'onSurface', '--text-2': 'onSurfaceVariant', '--text-3': 'outline',
-  '--divider': 'outlineVariant', '--outline': 'outline',
-  '--danger': 'error', '--danger-soft': 'errorContainer', '--on-danger-soft': 'onErrorContainer',
-  '--switch-track': 'surfaceContainerHighest', '--switch-thumb': 'outline',
+  '--sys-primary': 'primary', '--sys-on-primary': 'onPrimary',
+  '--sys-primary-container': 'primaryContainer', '--sys-on-primary-container': 'onPrimaryContainer',
+  '--sys-secondary': 'secondary', '--sys-on-secondary': 'onSecondary',
+  '--sys-secondary-container': 'secondaryContainer', '--sys-on-secondary-container': 'onSecondaryContainer',
+  '--sys-tertiary': 'tertiary', '--sys-on-tertiary': 'onTertiary',
+  '--sys-tertiary-container': 'tertiaryContainer', '--sys-on-tertiary-container': 'onTertiaryContainer',
+  '--sys-error': 'error', '--sys-on-error': 'onError',
+  '--sys-error-container': 'errorContainer', '--sys-on-error-container': 'onErrorContainer',
+  '--sys-surface': 'surface', '--sys-on-surface': 'onSurface',
+  '--sys-surface-variant': 'surfaceVariant', '--sys-on-surface-variant': 'onSurfaceVariant',
+  '--sys-surface-container-lowest': 'surfaceContainerLowest',
+  '--sys-surface-container-low': 'surfaceContainerLow',
+  '--sys-surface-container': 'surfaceContainer',
+  '--sys-surface-container-high': 'surfaceContainerHigh',
+  '--sys-surface-container-highest': 'surfaceContainerHighest',
+  '--sys-outline': 'outline', '--sys-outline-variant': 'outlineVariant',
+  '--sys-inverse-surface': 'inverseSurface', '--sys-inverse-on-surface': 'inverseOnSurface',
 };
-const ownedProperties = [...Object.keys(accentProperties), ...Object.keys(materialProperties)];
-const palettes = new Map();
+const ownedProperties = [...Object.keys(accentProperties), ...Object.keys(materialProperties)];const palettes = new Map();
 let colorScheme;
 let requestId = 0;
 let refreshTimer;
@@ -120,14 +141,16 @@ export function applySystemColors() {
   for (const property of ownedProperties) root.style.removeProperty(property);
   delete root.dataset.systemColors;
   if (!colorScheme) return;
-  const palette = palettes.get(colorScheme.matches);
+  const dark = colorScheme.matches;
+  const palette = palettes.get(dark);
   if (!palette) return;
-  const properties = {
-    ...accentProperties,
-    ...(root.dataset.theme === 'md3' ? materialProperties : {}),
-  };
-  for (const [property, role] of Object.entries(properties)) {
+  for (const [property, role] of Object.entries(dark ? accentPropertiesDark : accentProperties)) {
     if (palette.colors[role]) root.style.setProperty(property, palette.colors[role]);
+  }
+  if (root.dataset.theme === 'md3') {
+    for (const [property, role] of Object.entries(materialProperties)) {
+      if (palette.colors[role]) root.style.setProperty(property, palette.colors[role]);
+    }
   }
   root.dataset.systemColors = palette.source;
 }

@@ -90,44 +90,66 @@ var roles = {
   onPrimary: "on_primary",
   primaryContainer: "primary_container",
   onPrimaryContainer: "on_primary_container",
+  secondary: "secondary",
+  onSecondary: "on_secondary",
   secondaryContainer: "secondary_container",
   onSecondaryContainer: "on_secondary_container",
+  tertiary: "tertiary",
+  onTertiary: "on_tertiary",
+  tertiaryContainer: "tertiary_container",
+  onTertiaryContainer: "on_tertiary_container",
+  error: "error",
+  onError: "on_error",
+  errorContainer: "error_container",
+  onErrorContainer: "on_error_container",
   background: "surface",
   surface: "surface",
+  surfaceContainerLowest: "surface_container_lowest",
+  surfaceContainerLow: "surface_container_low",
   surfaceContainer: "surface_container",
   surfaceContainerHigh: "surface_container_high",
   surfaceContainerHighest: "surface_container_highest",
+  surfaceVariant: "surface_variant",
   onSurface: "on_surface",
   onSurfaceVariant: "on_surface_variant",
   outline: "outline",
   outlineVariant: "outline_variant",
-  error: "error",
-  errorContainer: "error_container",
-  onErrorContainer: "on_error_container"
+  inverseSurface: "inverse_surface",
+  inverseOnSurface: "inverse_on_surface"
 };
 var required = ["primary", "onPrimary", "primaryContainer", "onPrimaryContainer", "secondaryContainer", "onSecondaryContainer"];
-var accentProperties = {
-  "--primary": "primary",
-  "--on-primary": "onPrimary"
-};
+var accentProperties = { "--accent-primary": "primary", "--accent-on-primary": "onPrimary" };
+var accentPropertiesDark = { "--accent-primary": "primaryContainer", "--accent-on-primary": "onPrimaryContainer" };
 var materialProperties = {
-  "--primary-container": "primaryContainer",
-  "--on-primary-container": "onPrimaryContainer",
-  "--accent-soft": "secondaryContainer",
-  "--on-accent-soft": "onSecondaryContainer",
-  "--bg": "surface",
-  "--surface-container": "surfaceContainer",
-  "--surface-container-high": "surfaceContainerHigh",
-  "--text": "onSurface",
-  "--text-2": "onSurfaceVariant",
-  "--text-3": "outline",
-  "--divider": "outlineVariant",
-  "--outline": "outline",
-  "--danger": "error",
-  "--danger-soft": "errorContainer",
-  "--on-danger-soft": "onErrorContainer",
-  "--switch-track": "surfaceContainerHighest",
-  "--switch-thumb": "outline"
+  "--sys-primary": "primary",
+  "--sys-on-primary": "onPrimary",
+  "--sys-primary-container": "primaryContainer",
+  "--sys-on-primary-container": "onPrimaryContainer",
+  "--sys-secondary": "secondary",
+  "--sys-on-secondary": "onSecondary",
+  "--sys-secondary-container": "secondaryContainer",
+  "--sys-on-secondary-container": "onSecondaryContainer",
+  "--sys-tertiary": "tertiary",
+  "--sys-on-tertiary": "onTertiary",
+  "--sys-tertiary-container": "tertiaryContainer",
+  "--sys-on-tertiary-container": "onTertiaryContainer",
+  "--sys-error": "error",
+  "--sys-on-error": "onError",
+  "--sys-error-container": "errorContainer",
+  "--sys-on-error-container": "onErrorContainer",
+  "--sys-surface": "surface",
+  "--sys-on-surface": "onSurface",
+  "--sys-surface-variant": "surfaceVariant",
+  "--sys-on-surface-variant": "onSurfaceVariant",
+  "--sys-surface-container-lowest": "surfaceContainerLowest",
+  "--sys-surface-container-low": "surfaceContainerLow",
+  "--sys-surface-container": "surfaceContainer",
+  "--sys-surface-container-high": "surfaceContainerHigh",
+  "--sys-surface-container-highest": "surfaceContainerHighest",
+  "--sys-outline": "outline",
+  "--sys-outline-variant": "outlineVariant",
+  "--sys-inverse-surface": "inverseSurface",
+  "--sys-inverse-on-surface": "inverseOnSurface"
 };
 var ownedProperties = [...Object.keys(accentProperties), ...Object.keys(materialProperties)];
 var palettes = /* @__PURE__ */ new Map();
@@ -207,14 +229,16 @@ function applySystemColors() {
   for (const property of ownedProperties) root.style.removeProperty(property);
   delete root.dataset.systemColors;
   if (!colorScheme) return;
-  const palette = palettes.get(colorScheme.matches);
+  const dark = colorScheme.matches;
+  const palette = palettes.get(dark);
   if (!palette) return;
-  const properties = {
-    ...accentProperties,
-    ...root.dataset.theme === "md3" ? materialProperties : {}
-  };
-  for (const [property, role] of Object.entries(properties)) {
+  for (const [property, role] of Object.entries(dark ? accentPropertiesDark : accentProperties)) {
     if (palette.colors[role]) root.style.setProperty(property, palette.colors[role]);
+  }
+  if (root.dataset.theme === "md3") {
+    for (const [property, role] of Object.entries(materialProperties)) {
+      if (palette.colors[role]) root.style.setProperty(property, palette.colors[role]);
+    }
   }
   root.dataset.systemColors = palette.source;
 }
@@ -381,9 +405,11 @@ function initSettings() {
     renderLogs();
   });
 }
+var TAB_TITLES = { apps: "\u7CFB\u7EDF\u5E94\u7528\u8F6C\u6362", logs: "\u8FD0\u884C\u65E5\u5FD7", settings: "\u8BBE\u7F6E" };
 function switchTab(name) {
   closeTargetMenu();
   document.body.dataset.tab = name;
+  $(".top-bar__title").textContent = TAB_TITLES[name] || TAB_TITLES.apps;
   document.querySelectorAll(".nav-tab").forEach((button) => {
     const active = button.dataset.tab === name;
     button.classList.toggle("active", active);
@@ -395,6 +421,7 @@ function switchTab(name) {
   });
   if (name === "logs") renderLogs();
   window.scrollTo(0, 0);
+  $(".top-bar").dataset.scrolled = "false";
 }
 var PULL_THRESHOLD = 40;
 var PULL_MAX = 72;
@@ -422,6 +449,23 @@ async function refreshAll() {
   } finally {
     state.refreshing = false;
   }
+}
+function initTopBar() {
+  const bar = $(".top-bar");
+  const COLLAPSE_AT = 8;
+  let ticking = false;
+  const paint = () => {
+    ticking = false;
+    bar.dataset.scrolled = window.scrollY > COLLAPSE_AT ? "true" : "false";
+  };
+  const schedule = () => {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(paint);
+  };
+  window.addEventListener("scroll", schedule, { passive: true });
+  window.addEventListener("resize", schedule, { passive: true });
+  paint();
 }
 function initPullGesture() {
   const page = $("#page");
@@ -744,12 +788,12 @@ function render() {
       const side = document.createElement("div");
       side.className = "side-badge target";
       side.textContent = `\u672C\u6A21\u5757\u7BA1\u7406 \xB7 ${targetLabel(selectedTarget)}`;
-      row.append(side);
+      info.append(side);
     } else if (app.isSystem) {
       const side = document.createElement("div");
       side.className = "side-badge badge";
       side.textContent = "\u5DF2\u662F\u7CFB\u7EDF\u5E94\u7528";
-      row.append(side);
+      info.append(side);
     }
     fragment.append(row);
   }
@@ -849,7 +893,7 @@ $("#save").addEventListener("click", () => {
   $("#confirm-error").hidden = true;
   $("#confirm-error").textContent = "";
   $("#confirm").textContent = "\u4FDD\u5B58\u5E76\u7B49\u5F85\u91CD\u542F";
-  $("#confirm-dialog").showModal();
+  openModal($("#confirm-dialog"));
 });
 $("#cancel").addEventListener("click", () => $("#confirm-dialog").close());
 $("#confirm").addEventListener("click", async () => {
@@ -884,6 +928,11 @@ $("#confirm").addEventListener("click", async () => {
 function closeModal(dialog) {
   if (dialog && dialog.open) dialog.close();
 }
+function openModal(dialog) {
+  if (!dialog) return;
+  dialog.showModal();
+  dialog.focus();
+}
 function wireModalDismiss(dialog) {
   dialog.addEventListener("click", (event) => {
     if (event.target !== dialog) return;
@@ -891,7 +940,7 @@ function wireModalDismiss(dialog) {
   });
 }
 $("#reboot").addEventListener("click", () => {
-  $("#reboot-dialog").showModal();
+  openModal($("#reboot-dialog"));
 });
 $("#reboot-cancel").addEventListener("click", () => closeModal($("#reboot-dialog")));
 $("#reboot-confirm").addEventListener("click", () => {
@@ -911,5 +960,6 @@ initThemePicker();
 initSystemColors();
 initTargetMenu();
 renderLogs();
+initTopBar();
 initPullGesture();
 loadApps();

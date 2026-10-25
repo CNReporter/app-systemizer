@@ -18,6 +18,10 @@
     <div class="page" id="page">
       <main class="shell">
         <section id="panel-apps" class="panel" data-panel="apps">
+          <!-- Visual duplicate of the bar title for the scrollable large-title
+               layout; the bar's h1 stays the accessible page heading. -->
+          <div class="page-title" aria-hidden="true">系统应用转换</div>
+
           <section class="card status-card" id="status-card" data-state="loading" aria-live="polite">
             <span class="status-card__dot" aria-hidden="true"></span>
             <div class="status-card__text">
@@ -73,23 +77,24 @@
         </section>
 
         <section id="panel-settings" class="panel" data-panel="settings" hidden>
+          <div class="page-title" aria-hidden="true">设置</div>
           <h2 class="group-title">外观</h2>
 
           <section id="theme-picker" class="card theme-card">
             <div class="row row--label">
               <div class="row__text">
                 <span id="theme-label" class="row__title">UI 风格</span>
-                <span class="row__hint">两套主题都会跟随系统的深浅色与取色。</span>
+                <span class="row__hint">两套主题都会跟随系统的深浅色与取色：Material 3 使用动态取色，Miuix 使用 HyperOS 配色。</span>
               </div>
             </div>
             <div id="theme-options" class="segmented" role="radiogroup" aria-labelledby="theme-label">
               <button class="segment" type="button" role="radio" aria-checked="true" data-theme-option="md3" tabindex="0">
+                <svg class="segment__check" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
                 <span class="segment__title">Material 3</span>
-                <span class="segment__hint">动态取色</span>
               </button>
               <button class="segment" type="button" role="radio" aria-checked="false" data-theme-option="miuix" tabindex="-1">
+                <svg class="segment__check" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
                 <span class="segment__title">Miuix</span>
-                <span class="segment__hint">HyperOS 风格</span>
               </button>
             </div>
           </section>
@@ -143,7 +148,7 @@
       </button>
     </nav>
 
-    <dialog id="reboot-dialog" class="modal" aria-labelledby="reboot-dialog-title">
+    <dialog id="reboot-dialog" class="modal" tabindex="-1" aria-labelledby="reboot-dialog-title">
       <div class="modal__inner">
         <h2 class="modal__title" id="reboot-dialog-title">重启系统？</h2>
         <p class="modal__body">确定要重启设备吗？</p>
@@ -154,7 +159,7 @@
       </div>
     </dialog>
 
-    <dialog id="confirm-dialog" class="modal" aria-labelledby="confirm-dialog-title">
+    <dialog id="confirm-dialog" class="modal" tabindex="-1" aria-labelledby="confirm-dialog-title">
       <div class="modal__inner">
         <h2 class="modal__title" id="confirm-dialog-title">确认写入模块配置</h2>
         <p id="confirm-text" class="modal__body"></p>

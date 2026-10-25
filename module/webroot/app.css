@@ -991,9 +991,10 @@ html[data-theme="md3"] .text-button:disabled {
   color: color-mix(in srgb, var(--md-on-surface) 38%, transparent);
 }
 
-/* 应用列表：两行列表项，18dp 方形勾选框在前 */
+/* 应用列表：两行列表项，18dp 方形勾选框在前。
+   列表不额外留上下内边距，行首尾直接贴到卡片边缘，选中色块才能和卡片圆角共用同一条曲线。 */
 html[data-theme="md3"] .app-list {
-  padding: 8px 0;
+  padding: 0;
   overflow: hidden;
 }
 
@@ -1013,6 +1014,18 @@ html[data-theme="md3"] .app + .app::before {
 
 html[data-theme="md3"] .app.selected {
   background: color-mix(in srgb, var(--md-primary) 8%, transparent);
+}
+
+/* 连续选中行连成一块，只在选中段的首尾画圆角，中间保持直边；
+   半径与卡片一致，贴着卡片边缘时由卡片自身裁出同一条曲线，不会再出现方角顶着圆角的错位。 */
+html[data-theme="md3"] .app.selected:not(.app.selected + .app) {
+  border-start-start-radius: var(--md-shape-m);
+  border-start-end-radius: var(--md-shape-m);
+}
+
+html[data-theme="md3"] .app.selected:not(:has(+ .app.selected)) {
+  border-end-start-radius: var(--md-shape-m);
+  border-end-end-radius: var(--md-shape-m);
 }
 
 html[data-theme="md3"] .app.selected::before { background: transparent; }

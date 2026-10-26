@@ -1,0 +1,72 @@
+name: Release
+
+# 打 tag 就发版：校验版本号 → 构建模块包 → 建 Release 并挂上 zip。
+# 说明文件放在 release-notes/<tag>.md，没有就自动按提交历史生成。
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 已存在的 tag（例如 v1.3.3）；用于补发或重新上传包
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Check tag matches package.json
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          want="v$(node -p "require('./package.json').version")"
+          if [ "$TAG" != "$want" ]; then
+            echo "::error::tag $TAG 与 package.json 的版本 $want 不一致，先改 version 再打 tag"
+            exit 1
+          fi
+
+      - name: Build module zip
+        run: npm run package
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          notes="release-notes/$TAG.md"
+          if [ -f "$notes" ]; then note_args=(--notes-file "$notes"); else note_args=(--generate-notes); fi
+          title="App Systemizer ${TAG#v}"
+          ls -l dist/*.zip
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            # 已存在就覆盖附件、刷新说明，方便补发
+            gh release upload "$TAG" dist/*.zip --clobber
+            gh release edit "$TAG" --title "$title" "${note_args[@]}"
+          else
+            gh release create "$TAG" dist/*.zip --title "$title" "${note_args[@]}"
+          fi
+          gh release view "$TAG" --json url,assets \
+            --jq '.url, (.assets[] | "asset: \(.name) \(.size)B")'

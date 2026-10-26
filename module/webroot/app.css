@@ -1012,8 +1012,11 @@ html[data-theme="md3"] .app + .app::before {
   background: var(--md-outline-variant);
 }
 
+/* 选中底色：把 secondary-container 按 60% 混进卡片底色。8% primary 叠在
+   surface-highest 上只会得到一层没有彩度的灰，和禁用态几乎分不出来；整块
+   secondary-container 又太重，压住下面的图标。 */
 html[data-theme="md3"] .app.selected {
-  background: color-mix(in srgb, var(--md-primary) 8%, transparent);
+  background: color-mix(in srgb, var(--md-secondary-container) 60%, var(--md-surface-highest));
 }
 
 /* 连续选中行连成一块，只在选中段的首尾画圆角，中间保持直边；
@@ -1029,6 +1032,21 @@ html[data-theme="md3"] .app.selected:not(:has(+ .app.selected)) {
 }
 
 html[data-theme="md3"] .app.selected::before { background: transparent; }
+
+/* 选中行里的文字和徽标跟着 secondary-container 的配对色走。徽标原来直接用
+   secondary-container 作底色，和选中底色同源，铺上色块后整个徽标就消失了，
+   这里改成 on-secondary-container 的 12% 叠加，仍是一块比底色深的圆角片。 */
+html[data-theme="md3"] .app.selected .app-name { color: var(--md-on-secondary-container); }
+
+html[data-theme="md3"] .app.selected .package {
+  color: color-mix(in srgb, var(--md-on-secondary-container) 70%, transparent);
+}
+
+html[data-theme="md3"] .app.selected .side-badge,
+html[data-theme="md3"] .app.selected .side-badge.target {
+  background: color-mix(in srgb, var(--md-on-secondary-container) 12%, transparent);
+  color: var(--md-on-secondary-container);
+}
 
 html[data-theme="md3"] .app:active {
   background: color-mix(in srgb, var(--md-on-surface) 12%, transparent);
@@ -1993,8 +2011,19 @@ html[data-theme="miuix"] .app + .app::before {
   background: var(--mx-divider-line);
 }
 
+/* 选中底色用 Miuix 自己的 tertiary-container：accent-primary 按 6% 混在白色卡片上
+   几乎就是白色（深色下同样贴着 surface-container），完全看不出选中；tertiary-container
+   是 HyperOS 的浅蓝选中底，深浅色各有一档，勾选框仍用强调色。 */
 html[data-theme="miuix"] .app.selected {
-  background: color-mix(in srgb, var(--mx-primary) 6%, transparent);
+  background: var(--mx-tertiary-container);
+}
+
+/* 徽标本来的底色就是 tertiary-container，铺在选中行上会一起消失，
+   换回 surface-container 作底色、保留 on-tertiary-container 的蓝字。 */
+html[data-theme="miuix"] .app.selected .side-badge,
+html[data-theme="miuix"] .app.selected .side-badge.target {
+  background: var(--mx-surface-container);
+  color: var(--mx-on-tertiary-container);
 }
 
 html[data-theme="miuix"] .app.selected::before { background: transparent; }

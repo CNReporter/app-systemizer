@@ -57,16 +57,26 @@ jobs:
           TAG: ${{ inputs.tag || github.ref_name }}
         run: |
           set -euo pipefail
-          notes="release-notes/$TAG.md"
-          if [ -f "$notes" ]; then note_args=(--notes-file "$notes"); else note_args=(--generate-notes); fi
           title="App Systemizer ${TAG#v}"
+          notes="release-notes/$TAG.md"
+          # 补发旧 tag 时说明文件可能只存在于 main，从 API 取一份
+          if [ ! -f "$notes" ] && gh api "repos/$GITHUB_REPOSITORY/contents/$notes?ref=main" --jq .content >/tmp/notes.b64 2>/dev/null; then
+            base64 -d /tmp/notes.b64 > /tmp/notes.md && notes=/tmp/notes.md
+            echo "using release notes from main"
+          fi
           ls -l dist/*.zip
           if gh release view "$TAG" >/dev/null 2>&1; then
-            # 已存在就覆盖附件、刷新说明，方便补发
+            # 已存在就覆盖附件，方便补发；有说明文件才覆盖正文
             gh release upload "$TAG" dist/*.zip --clobber
-            gh release edit "$TAG" --title "$title" "${note_args[@]}"
+            if [ -f "$notes" ]; then
+              gh release edit "$TAG" --title "$title" --notes-file "$notes"
+            else
+              gh release edit "$TAG" --title "$title"
+            fi
+          elif [ -f "$notes" ]; then
+            gh release create "$TAG" dist/*.zip --verify-tag --title "$title" --notes-file "$notes"
           else
-            gh release create "$TAG" dist/*.zip --title "$title" "${note_args[@]}"
+            gh release create "$TAG" dist/*.zip --verify-tag --title "$title" --generate-notes
           fi
           gh release view "$TAG" --json url,assets \
             --jq '.url, (.assets[] | "asset: \(.name) \(.size)B")'

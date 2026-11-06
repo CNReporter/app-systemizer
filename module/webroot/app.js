@@ -900,6 +900,20 @@ function wireModalDismiss(dialog) {
   });
 }
 
+// 外部链接交给系统浏览器，避免把 WebUI 顶掉。
+function openExternal(url) {
+  const target = String(url).replace(/"/g, '');
+  try {
+    exec(`am start -a android.intent.action.VIEW -d "${target}" >/dev/null 2>&1`);
+  } catch (_) {
+    window.open(target, '_blank');
+  }
+}
+
+$('#github-row').addEventListener('click', () => {
+  openExternal('https://github.com/CNReporter/app-systemizer');
+});
+
 $('#reboot').addEventListener('click', () => {
   openModal($('#reboot-dialog'));
 });

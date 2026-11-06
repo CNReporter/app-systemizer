@@ -6,7 +6,7 @@
     <meta name="color-scheme" content="light dark">
     <title>系统应用转换</title>
     <link rel="stylesheet" href="/internal/insets.css">
-    <link rel="stylesheet" href="app.css">
+    <link rel="stylesheet" href="app.css?v=1.6.2">
   </head>
   <body data-tab="apps">
     <header class="top-bar" data-scrolled="false">
@@ -193,7 +193,19 @@
             <div class="info"><span class="info__k">元模块</span><span class="info__v" id="info-metamodule">—</span></div>
             <div class="info"><span class="info__k">数据目录</span><span class="info__v mono" id="info-data-dir">/data/adb/app-systemizer</span></div>
             <div class="info"><span class="info__k">选择清单</span><span class="info__v mono">config/selections.tsv</span></div>
-            <div class="info"><span class="info__k">日志上限</span><span class="info__v">300 条</span></div>
+          </section>
+
+          <section class="card card--link">
+            <button id="github-row" class="setting" type="button">
+              <span class="setting__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.9-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.08 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.02a9.5 9.5 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.38.2 2.4.1 2.65.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.69-4.57 4.94.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10 10 0 0 0 12 2Z"/></svg>
+              </span>
+              <span class="setting__text">
+                <span class="setting__title">GitHub 仓库</span>
+                <span class="setting__sub">CNReporter/app-systemizer</span>
+              </span>
+              <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 19H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7h-2v7ZM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7Z"/></svg>
+            </button>
           </section>
         </section>
       </main>
@@ -296,6 +308,6 @@
       </div>
     </dialog>
 
-    <script type="module" src="bundle.js"></script>
+    <script type="module" src="bundle.js?v=1.6.2"></script>
   </body>
 </html>

@@ -66,7 +66,7 @@ jobs:
               version,
               versionCode: major * 1000000 + minor * 1000 + patch,
               zipUrl: `https://github.com/${repo}/releases/download/${tag}/App-Systemizer-KSU-${tag}.zip`,
-              changelog: `https://github.com/${repo}/releases/tag/${tag}`,
+              changelog: `https://github.com/${repo}/releases/download/${tag}/changelog.md`,
             };
             fs.writeFileSync("dist/update.json", JSON.stringify(update, null, 2) + "\n");
           '
@@ -91,6 +91,19 @@ jobs:
             echo "no CHANGELOG section for $TAG, falling back to generated notes"
           fi
 
+      - name: Prepare changelog asset
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [ -f /tmp/notes.md ]; then
+            # 去掉 Markdown 记号，管理器里直接显示纯文本
+            sed -e 's/^### //' -e 's/^## //' -e 's/^- /• /' -e 's/\*\*//g' /tmp/notes.md > dist/changelog.md
+          else
+            printf 'App Systemizer %s\n\n完整说明见 Release 页面。\n' "${TAG#v}" > dist/changelog.md
+          fi
+          cat dist/changelog.md
+
       - name: Publish release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -99,7 +112,7 @@ jobs:
           set -euo pipefail
           title="App Systemizer ${TAG#v}"
           notes=/tmp/notes.md
-          assets=(dist/*.zip dist/update.json)
+          assets=(dist/*.zip dist/update.json dist/changelog.md)
           ls -l "${assets[@]}"
           if gh release view "$TAG" >/dev/null 2>&1; then
             # 已存在就覆盖附件，方便补发；有说明才覆盖正文

@@ -29,6 +29,13 @@ for (const [key, value] of Object.entries(metadata)) {
 }
 writeFileSync(propPath, prop);
 writeFileSync(resolve(root, 'module/webroot/module-info.json'), `${JSON.stringify(metadata, null, 2)}\n`);
+
+// 资源地址带上版本号，避免管理器把旧的 app.css / bundle.js 缓存下来。
+const indexPath = resolve(root, 'module/webroot/index.html');
+let index = readFileSync(indexPath, 'utf8').replace(/\r\n/g, '\n');
+index = index.replace(/href="app\.css(?:\?v=[^"]*)?"/, `href="app.css?v=${version}"`);
+index = index.replace(/src="bundle\.js(?:\?v=[^"]*)?"/, `src="bundle.js?v=${version}"`);
+writeFileSync(indexPath, index);
 await build({
   absWorkingDir: root,
   entryPoints: ['module/webroot/app.js'],

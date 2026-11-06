@@ -80,8 +80,8 @@ function getPackagesInfo(packages) {
 var module_info_default = {
   id: "app-systemizer",
   name: "App Systemizer",
-  version: "1.6.1",
-  versionCode: 1006001
+  version: "1.6.2",
+  versionCode: 1006002
 };
 
 // module/webroot/system-colors.js
@@ -1270,6 +1270,17 @@ function wireModalDismiss(dialog) {
     closeModal(dialog);
   });
 }
+function openExternal(url) {
+  const target = String(url).replace(/"/g, "");
+  try {
+    exec(`am start -a android.intent.action.VIEW -d "${target}" >/dev/null 2>&1`);
+  } catch (_) {
+    window.open(target, "_blank");
+  }
+}
+$("#github-row").addEventListener("click", () => {
+  openExternal("https://github.com/CNReporter/app-systemizer");
+});
 $("#reboot").addEventListener("click", () => {
   openModal($("#reboot-dialog"));
 });

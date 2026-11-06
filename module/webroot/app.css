@@ -177,10 +177,8 @@ body {
   min-height: 100dvh;
   background: var(--md-surface);
   color: var(--md-on-surface);
-  font-family: system-ui;
   font-size: 15px;
   line-height: 1.45;
-  -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior-y: none;
 }
@@ -867,18 +865,17 @@ svg { display: block; }
 .log-list {
   background: var(--md-surface-container-low);
   border-radius: 16px;
-  padding: 6px;
+  overflow: hidden;
 }
 
 .log {
-  padding: 12px;
-  border-radius: 12px;
+  padding: 14px 16px;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
 }
 
-.log + .log { margin-top: 2px; }
+.log + .log { border-top: 1px solid var(--md-outline-variant); }
 
 .log__top { display: flex; align-items: center; gap: 8px; }
 
@@ -1027,6 +1024,8 @@ svg { display: block; }
 }
 
 .card { background: var(--md-surface-container-low); border-radius: 12px; flex: none; }
+
+.card--link { margin-top: 8px; }
 
 .card--rows > * + * { border-top: 1px solid var(--md-outline-variant); }
 

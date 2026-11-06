@@ -80,8 +80,8 @@ function getPackagesInfo(packages) {
 var module_info_default = {
   id: "app-systemizer",
   name: "App Systemizer",
-  version: "1.4.0",
-  versionCode: 1004e3
+  version: "1.5.0",
+  versionCode: 1005e3
 };
 
 // module/webroot/system-colors.js
@@ -444,9 +444,72 @@ function initTheme(storageKey) {
   return seed;
 }
 
+// module/webroot/update.js
+var API = "https://api.github.com/repos/CNReporter/app-systemizer/releases/latest";
+var RELEASES = "https://github.com/CNReporter/app-systemizer/releases";
+function parseVersion(value) {
+  const match = /(\d+)\.(\d+)\.(\d+)/.exec(String(value == null ? "" : value));
+  return match ? match.slice(1).map(Number) : null;
+}
+function compareVersions(a, b) {
+  const left = parseVersion(a);
+  const right = parseVersion(b);
+  if (!left || !right) return 0;
+  for (let i = 0; i < 3; i += 1) {
+    if (left[i] !== right[i]) return left[i] > right[i] ? 1 : -1;
+  }
+  return 0;
+}
+async function fetchLatest() {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), 8e3);
+  try {
+    const response = await fetch(API, {
+      signal: controller.signal,
+      cache: "no-store",
+      headers: { Accept: "application/vnd.github+json" }
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    const version = String(data.tag_name || "").replace(/^v/i, "");
+    if (!parseVersion(version)) throw new Error("\u65E0\u6CD5\u89E3\u6790\u7248\u672C\u53F7");
+    return {
+      version,
+      url: data.html_url || RELEASES,
+      notes: String(data.body || "").trim(),
+      publishedAt: data.published_at || ""
+    };
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
+function readCache(storageKey) {
+  try {
+    const raw = JSON.parse(localStorage.getItem(storageKey) || "null");
+    if (!raw || typeof raw.at !== "number" || !raw.latest) return null;
+    if (!parseVersion(raw.latest.version)) return null;
+    return raw;
+  } catch (_) {
+    return null;
+  }
+}
+function writeCache(storageKey, latest) {
+  try {
+    localStorage.setItem(storageKey, JSON.stringify({ at: Date.now(), latest }));
+  } catch (_) {
+  }
+}
+function formatDate(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
 // module/webroot/app.js
 var CONTROL = `/data/adb/modules/${module_info_default.id}/scripts/app-systemizer.sh`;
 var THEME_KEY = `${module_info_default.id}-theme`;
+var UPDATE_KEY = `${module_info_default.id}-update`;
+var UPDATE_TTL = 12 * 60 * 60 * 1e3;
 var state = {
   apps: [],
   selected: /* @__PURE__ */ new Map(),
@@ -653,6 +716,89 @@ function initThemeSheet() {
   $("#theme-dialog").addEventListener("click", (event) => {
     if (event.target === $("#theme-dialog")) $("#theme-dialog").close();
   });
+}
+var updateState = { status: "idle", latest: null, busy: false };
+function paintUpdateRow() {
+  const value = $("#update-value");
+  const nav = $("#nav-settings");
+  $("#update-sub").textContent = `\u5F53\u524D\u7248\u672C ${module_info_default.version}`;
+  delete value.dataset.state;
+  const status = updateState.status;
+  nav.classList.toggle("has-update", status === "available");
+  if (status === "checking") value.textContent = "\u68C0\u67E5\u4E2D\u2026";
+  else if (status === "available" && updateState.latest) {
+    value.textContent = `v${updateState.latest.version} \u53EF\u7528`;
+    value.dataset.state = "available";
+  } else if (status === "latest") value.textContent = "\u5DF2\u662F\u6700\u65B0";
+  else if (status === "error") {
+    value.textContent = "\u68C0\u67E5\u5931\u8D25";
+    value.dataset.state = "error";
+  } else value.textContent = "\u2014";
+}
+function openUpdateDialog(latest) {
+  const meta = latest.publishedAt ? `\u5F53\u524D\u7248\u672C ${module_info_default.version} \xB7 \u53D1\u5E03\u4E8E ${formatDate(latest.publishedAt)}` : `\u5F53\u524D\u7248\u672C ${module_info_default.version}`;
+  $("#update-title").textContent = `\u53D1\u73B0\u65B0\u7248\u672C ${latest.version}`;
+  $("#update-meta").textContent = meta;
+  $("#update-notes").textContent = latest.notes || "\u8FD9\u4E2A\u7248\u672C\u6CA1\u6709\u9644\u66F4\u65B0\u8BF4\u660E\uFF0C\u70B9\u300C\u524D\u5F80\u4E0B\u8F7D\u300D\u67E5\u770B\u5B8C\u6574\u7684 Release \u9875\u9762\u3002";
+  openModal($("#update-dialog"));
+}
+function openExternal(url) {
+  try {
+    exec(`am start -a android.intent.action.VIEW -d "${String(url).replace(/"/g, "")}" >/dev/null 2>&1`);
+  } catch (_) {
+    window.open(url, "_blank");
+  }
+}
+async function checkUpdates({ manual = false, spinner = true } = {}) {
+  if (updateState.busy) return;
+  updateState.busy = true;
+  if (spinner) {
+    updateState.status = "checking";
+    paintUpdateRow();
+  }
+  try {
+    const latest = await fetchLatest();
+    writeCache(UPDATE_KEY, latest);
+    const newer = compareVersions(latest.version, module_info_default.version) > 0;
+    updateState.latest = latest;
+    updateState.status = newer ? "available" : "latest";
+    paintUpdateRow();
+    if (manual) {
+      if (newer) openUpdateDialog(latest);
+      else toast(`\u5DF2\u662F\u6700\u65B0\u7248\u672C ${module_info_default.version}`);
+    }
+  } catch (error) {
+    updateState.status = "error";
+    paintUpdateRow();
+    if (manual) toast("\u68C0\u67E5\u66F4\u65B0\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5\u7F51\u7EDC\u540E\u91CD\u8BD5");
+  } finally {
+    updateState.busy = false;
+  }
+}
+function initUpdates() {
+  const cached = readCache(UPDATE_KEY);
+  if (cached) {
+    updateState.latest = cached.latest;
+    updateState.status = compareVersions(cached.latest.version, module_info_default.version) > 0 ? "available" : "latest";
+    paintUpdateRow();
+  }
+  if (!cached || Date.now() - cached.at > UPDATE_TTL) {
+    void checkUpdates({ spinner: !cached });
+  }
+  $("#update-row").addEventListener("click", () => {
+    if (updateState.status === "available" && updateState.latest) {
+      openUpdateDialog(updateState.latest);
+      return;
+    }
+    void checkUpdates({ manual: true });
+  });
+  $("#update-later").addEventListener("click", () => $("#update-dialog").close());
+  $("#update-open").addEventListener("click", () => {
+    const latest = updateState.latest;
+    $("#update-dialog").close();
+    if (latest && latest.url) openExternal(latest.url);
+  });
+  wireModalDismiss($("#update-dialog"));
 }
 var TAB_TITLES = { apps: "\u7CFB\u7EDF\u5E94\u7528\u8F6C\u6362", logs: "\u8FD0\u884C\u65E5\u5FD7", settings: "\u8BBE\u7F6E" };
 function switchTab(name) {
@@ -1190,6 +1336,7 @@ wireModalDismiss($("#confirm-dialog"));
 $("#info-version").textContent = module_info_default.version;
 $("#info-data-dir").textContent = `/data/adb/${module_info_default.id}`;
 initThemeSheet();
+initUpdates();
 initSettings();
 initSystemColors();
 initTargetSegments();

@@ -1,38 +1,53 @@
 # App Systemizer（KernelSU）
 
-App Systemizer 是一个 KernelSU 模块，通过 metamodule 的挂载机制把用户应用映射为系统应用。模块只写入 `/data/adb` 下的暂存目录和配置，不 remount 或修改真实的 `/system`、`super` 及动态逻辑分区。
+把普通用户应用变成系统应用：勾选、保存、重启，之后它就以 `/system/app/<包名>/` 或 `/system/priv-app/<包名>/` 的身份运行。
+
+模块只往 `/data/adb` 写暂存文件和配置，不 remount、不改真实分区、不删应用数据，也不会授予平台签名权限。取消勾选并保存，下次重启就撤销。
+
+## 功能
+
+- **应用页**：搜索、批量选择、切换目标目录，保存后重启生效；下拉刷新应用列表与挂载状态。
+- **日志页**：滚动记录命令输出，可按 OK / 信息 / 警告 / 错误筛选；默认关闭，在设置里开启后才出现。
+- **设置页**：自定义主题色、日志开关、检查更新、模块信息。
+- **Material 3 界面**：跟随系统深浅色，并读取 KernelSU / Android 的动态取色；没有动态取色时回落到 M3 基线色板。
+- **主题色**：设置 → 外观 → 主题色，输入六位色号或选预设，整套界面按这颗种子色重新派生。
+- **检查更新**：读取 GitHub 最新 Release，有新版本时在设置页提示并弹窗展示更新说明，可直接跳转下载。
 
 ## 工作方式
 
-WebUI 读取用户应用，用户选择应用和目标目录后保存。模块复制 base APK 与 split APK 到模块数据目录，由 Magic Mount-rs 或其他兼容 metamodule 在重启后挂载到 `/system/app/<包名>/` 或 `/system/priv-app/<包名>/`。转换不会删除原用户应用或应用数据，也不会自动授予平台签名权限。
+保存时，WebUI 把所选应用的 base APK 与 split APK 复制到模块数据目录，并把选择写进 `config/selections.tsv`；重启后由 Magic Mount-rs（或其他兼容 metamodule）把这些目录绑定到系统分区。`service.sh` 会在开机时检查并恢复缺失的暂存 APK。
 
-配置和诊断文件位于 `/data/adb/app-systemizer/`。取消选择并保存即可在下次重启时撤销对应挂载。`service.sh` 会在启动时检查并恢复缺失的暂存 APK。
+所有配置和诊断文件都在 `/data/adb/app-systemizer/`。
 
-## WebUI
+## 安装
 
-- 只有一套 Material 3 主题：跟随系统深浅色，并读取 KernelSU/Android 的动态取色写入 `--sys-*`。
-- 设置 → 外观 → 主题色可以自定义主色：直接输入六位十六进制色号，或从预设色里选一个；界面会用这颗种子色派生容器色、次级色和表面层级，选「使用系统取色」随时退回动态取色。选择保存在 `localStorage`，下次打开仍然生效。
-- 组件按 M3 规范实现：大标题应用栏、填充卡片、搜索栏、分段按钮、带指示器的底部导航、扩展 FAB、开关、底部面板和对话框；页面底纹、卡片同心圆与徽章光环都由当前主色派生。
-- 顶栏标题随页签变化（系统应用转换 / 运行日志 / 设置），日志默认关闭。
-- 应用页支持搜索、批量选择、`/system/app` 与 `/system/priv-app` 分段切换、保存和重启。目标目录只影响之后勾选的应用；保存动作是右下角扩展 FAB，只在存在未保存修改时出现。下拉刷新应用与挂载状态，并保留未保存编辑。
-- 日志页默认不显示；在设置中开启“显示日志”后才会出现在底部导航并记录内存日志。下拉只重新显示已收集日志，“刷新状态”按钮才查询挂载状态。
-- 设置页保留下拉回弹动效，不执行刷新操作。三页手势均带阻尼、平滑回弹和减少动态效果支持。
-- 分段按钮、搜索和页面交互支持触摸与键盘方向键；应用行暴露 `checkbox` 语义，选中状态与锁定状态对读屏可见。
+1. 安装并启用 Magic Mount-rs（或其他兼容 metamodule）。
+2. 在 KernelSU / SukiSU Ultra / Magisk 里刷入 `App-Systemizer-KSU-vX.Y.Z.zip`，重启。
+3. 从模块详情页打开 WebUI。
 
-## 构建
+没有挂载元模块时 WebUI 会直接提示，转换不会生效。
 
-需要 Node.js。安装依赖并打包：
+## 使用
+
+应用页顶部的分段按钮决定**之后新勾选**的应用放进哪个目录，已有选择保留各自的目标；右下角的保存按钮只在有未保存修改时出现。日志默认不记录，需要先在设置里打开「显示日志」。
+
+## 兼容性
+
+只在作者的两台 Android 17 / HyperOS 4 设备上测试过，推荐使用 ReSukiSU。其他 KernelSU 分支或 Android 版本未验证。
+
+## 开发
 
     npm ci
-    npm run package
+    npm run build     # 打包 bundle，并把版本写进 module.prop 与 module-info.json
+    npm run package   # 生成 dist/App-Systemizer-KSU-v<version>.zip
 
-## 版本号
+版本号只在 `package.json` 维护（SemVer）；`versionCode` 由 `MAJOR×1000000 + MINOR×1000 + PATCH` 换算，安装器靠它判断升级。
 
-`module.prop` 里的 `version` 使用[语义化版本](https://semver.org/lang/zh-CN/) `MAJOR.MINOR.PATCH`，例如 `1.3.2`，只需要在 `package.json` 里维护。
+发版是 tag 驱动的：改 `package.json` 的版本 → 在 `CHANGELOG.md` 写一节 `## <version>` → 提交 → 打 tag `v<version>` 并推送。`.github/workflows/release.yml` 会校验 tag 与版本一致，构建 zip，用 CHANGELOG 对应小节当正文创建 Release。
 
-`versionCode` 由版本号换算，不含日期：`MAJOR × 1 000 000 + MINOR × 1 000 + PATCH`，所以 `1.3.2` 对应 `1003002`。每个分段占三位，`MINOR` 与 `PATCH` 需小于 1000；版本号升一级，`versionCode` 必然跟着变大，安装器的升级判断与版本号完全一致。
+## 目录
 
-发版只改 `package.json` 的版本号再执行 `npm run package`，`module.prop`、`webroot/module-info.json` 和 `dist/` 里的 ZIP 文件名会一起更新。
-
-## PS
-仅在本人两部 Android 17的 HyperOS 4设备上测试，推荐使用 ReSukiSU。
+    module/            模块本体：module.prop、service.sh、controller 脚本、webroot
+    module/webroot/    WebUI：index.html、app.css、app.js、theme.js、update.js
+    tools/             build.mjs（打包 bundle）、package.mjs（生成 zip）
+    .github/workflows/ tag 触发的发版流程

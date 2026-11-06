@@ -1,7 +1,7 @@
 name: Release
 
 # 打 tag 就发版：校验版本号 → 构建模块包 → 建 Release 并挂上 zip。
-# 说明文件放在 release-notes/<tag>.md，没有就自动按提交历史生成。
+# 说明取 CHANGELOG.md 里对应版本的小节，没有就按提交历史自动生成。
 on:
   push:
     tags:
@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 已存在的 tag（例如 v1.3.3）；用于补发或重新上传包
+        description: 已存在的 tag（例如 v1.5.0）；用于补发或重新上传包
         required: true
 
 permissions:
@@ -51,6 +51,25 @@ jobs:
       - name: Build module zip
         run: npm run package
 
+      - name: Extract release notes
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          # 取 CHANGELOG 里 "## <version>" 到下一个 "## " 之间的内容
+          awk -v v="$version" '
+            $0 ~ "^## " v "([^0-9.]|$)" { inside = 1; next }
+            inside && /^## / { exit }
+            inside { print }
+          ' CHANGELOG.md > /tmp/notes.md
+          if [ -s /tmp/notes.md ]; then
+            echo "using CHANGELOG section for $TAG"
+          else
+            rm -f /tmp/notes.md
+            echo "no CHANGELOG section for $TAG, falling back to generated notes"
+          fi
+
       - name: Publish release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -58,15 +77,10 @@ jobs:
         run: |
           set -euo pipefail
           title="App Systemizer ${TAG#v}"
-          notes="release-notes/$TAG.md"
-          # 补发旧 tag 时说明文件可能只存在于 main，从 API 取一份
-          if [ ! -f "$notes" ] && gh api "repos/$GITHUB_REPOSITORY/contents/$notes?ref=main" --jq .content >/tmp/notes.b64 2>/dev/null; then
-            base64 -d /tmp/notes.b64 > /tmp/notes.md && notes=/tmp/notes.md
-            echo "using release notes from main"
-          fi
+          notes=/tmp/notes.md
           ls -l dist/*.zip
           if gh release view "$TAG" >/dev/null 2>&1; then
-            # 已存在就覆盖附件，方便补发；有说明文件才覆盖正文
+            # 已存在就覆盖附件，方便补发；有说明才覆盖正文
             gh release upload "$TAG" dist/*.zip --clobber
             if [ -f "$notes" ]; then
               gh release edit "$TAG" --title "$title" --notes-file "$notes"

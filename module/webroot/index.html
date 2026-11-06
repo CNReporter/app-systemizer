@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN" data-theme="md3">
+<html lang="zh-CN">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -9,102 +9,139 @@
     <link rel="stylesheet" href="app.css">
   </head>
   <body data-tab="apps">
-    <header class="top-bar">
+    <header class="top-bar" data-scrolled="false">
       <h1 class="top-bar__title">系统应用转换</h1>
-      <button id="reboot" class="icon-button" type="button" aria-label="立即重启设备" title="重启">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v8M6.3 6.6a8 8 0 1 0 11.4 0"/></svg>
+      <button id="reboot" class="icon-btn" type="button" aria-label="立即重启设备" title="重启">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.65 6.35A7.96 7.96 0 0 0 12 4a8 8 0 1 0 7.73 10h-2.08A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35Z"/></svg>
       </button>
     </header>
+
     <div class="page" id="page">
       <main class="shell">
         <section id="panel-apps" class="panel" data-panel="apps">
-          <!-- Visual duplicate of the bar title for the scrollable large-title
-               layout; the bar's h1 stays the accessible page heading. -->
-          <div class="page-title" aria-hidden="true">系统应用转换</div>
+          <h1 class="page-title" aria-hidden="true">系统应用转换</h1>
 
-          <section class="card status-card" id="status-card" data-state="loading" aria-live="polite">
-            <span class="status-card__dot" aria-hidden="true"></span>
-            <div class="status-card__text">
-              <span class="status-card__label" id="status-label">正在检查挂载状态…</span>
-              <span id="mount-status" class="status-card__summary">勾选应用后保存，重启时由 Magic Mount-rs 将模块的 system 目录挂载到 /system。</span>
+          <section class="status-card" id="status-card" data-state="loading" aria-live="polite">
+            <div class="status-card__head">
+              <span class="status-card__badge" id="status-badge" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm-1.2 14.6-4-4 1.4-1.4 2.6 2.6 5.6-5.6 1.4 1.4-7 7Z"/></svg>
+              </span>
+              <span class="status-card__title" id="status-label">正在检查挂载状态…</span>
+              <span class="status-card__chip" id="status-chip">检查中</span>
+            </div>
+            <div class="status-card__hero">
+              <span class="hero__num" id="status-apps">0</span>
+              <span class="hero__text">
+                <span id="status-hero">个应用已托管</span>
+                <span class="hero__sub" id="mount-status">正在读取模块状态</span>
+              </span>
             </div>
           </section>
 
-          <label class="search-bar">
-            <svg class="search-bar__icon nav-icon--filled" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 3a7.5 7.5 0 0 1 5.9 12.1l4 4a1.2 1.2 0 0 1-1.7 1.7l-4-4A7.5 7.5 0 1 1 10.5 3Zm0 2.2a5.3 5.3 0 1 0 0 10.6 5.3 5.3 0 0 0 0-10.6Z"/></svg>
-            <svg class="search-bar__icon nav-icon--outline" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg>
+          <label class="search">
+            <svg class="search__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5Zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14Z"/></svg>
             <input id="search" type="search" placeholder="搜索名称或包名" autocomplete="off" aria-label="搜索应用">
           </label>
 
-          <div class="target-select">
-            <span id="target-label" class="target-select__label">目标目录</span>
-            <button id="target-default" class="target-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="target-menu" aria-labelledby="target-label target-value">
-              <span id="target-value">/system/app</span>
-              <svg class="target-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
+          <div id="target-options" class="segmented" role="radiogroup" aria-label="目标目录">
+            <button type="button" role="radio" aria-checked="true" data-target-option="app" tabindex="0">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+              <span>/system/app</span>
             </button>
-            <div id="target-menu" class="target-menu" role="listbox" aria-labelledby="target-label" hidden>
-              <button class="target-option" type="button" role="option" aria-selected="true" data-value="app" tabindex="-1">
-                <span>/system/app</span><svg class="target-check" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
-              </button>
-              <button class="target-option" type="button" role="option" aria-selected="false" data-value="priv-app" tabindex="-1">
-                <span>/system/priv-app</span><svg class="target-check" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
-              </button>
+            <button type="button" role="radio" aria-checked="false" data-target-option="priv-app" tabindex="-1">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4Z"/></svg>
+              <span>/system/priv-app</span>
+            </button>
+          </div>
+
+          <div class="list-head">
+            <span class="list-head__title">应用</span>
+            <span class="count-pill" id="count" aria-label="应用数量">0</span>
+            <div class="list-head__actions">
+              <button id="select-visible" class="text-btn" type="button">全选</button>
+              <button id="clear-selection" class="text-btn" type="button" disabled>清空</button>
             </div>
           </div>
 
-          <section class="summary-row">
-            <span id="count">正在读取应用…</span>
-            <div class="summary-row__actions">
-              <button id="select-visible" class="outline-button" type="button">选择当前结果</button>
-              <button id="clear-selection" class="text-button" type="button" disabled>清空选择</button>
-            </div>
-          </section>
-
-          <section id="app-list" class="card app-list" aria-live="polite"></section>
+          <p id="selection-summary" class="sr-only" aria-live="polite">未选择应用</p>
+          <section id="app-list" class="app-list"></section>
         </section>
 
         <section id="panel-logs" class="panel" data-panel="logs" hidden>
-          <div class="panel-head">
-            <div class="panel-head__text">
-              <h2>运行日志</h2>
-            </div>
-            <div class="panel-head__actions">
-              <button id="log-refresh" class="outline-button" type="button">刷新状态</button>
-              <button id="log-clear" class="text-button" type="button">清空</button>
-            </div>
-          </div>
-          <div id="log-list" class="card log-list"></div>
-        </section>
+          <h1 class="page-title" aria-hidden="true">运行日志</h1>
 
-        <section id="panel-settings" class="panel" data-panel="settings" hidden>
-          <div class="page-title" aria-hidden="true">设置</div>
-          <h2 class="group-title">外观</h2>
-
-          <section id="theme-picker" class="card theme-card">
-            <div class="row row--label">
-              <div class="row__text">
-                <span id="theme-label" class="row__title">UI 风格</span>
-                <span class="row__hint">两套主题都会跟随系统的深浅色与取色：Material 3 使用动态取色，Miuix 使用 HyperOS 配色。</span>
+          <section class="log-hero">
+            <div class="log-hero__head">
+              <span class="log-hero__badge" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Zm2 16H8v-2h8v2Zm0-4H8v-2h8v2Zm-3-5V3.5L18.5 9H13Z"/></svg>
+              </span>
+              <div class="log-hero__text">
+                <div class="log-hero__title" id="log-hero-title">今天 · 0 条记录</div>
+                <div class="log-hero__meta" id="log-hero-meta">还没有记录任何命令输出</div>
               </div>
+              <span class="chip-outline"><i></i>实时</span>
             </div>
-            <div id="theme-options" class="segmented" role="radiogroup" aria-labelledby="theme-label">
-              <button class="segment" type="button" role="radio" aria-checked="true" data-theme-option="md3" tabindex="0">
-                <svg class="segment__check" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-                <span class="segment__title">Material 3</span>
-              </button>
-              <button class="segment" type="button" role="radio" aria-checked="false" data-theme-option="miuix" tabindex="-1">
-                <svg class="segment__check" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-                <span class="segment__title">Miuix</span>
-              </button>
+            <div class="legend">
+              <span class="legend__item"><i class="legend__dot" data-kind="ok"></i><span id="log-count-ok">0 OK</span></span>
+              <span class="legend__item"><i class="legend__dot" data-kind="info"></i><span id="log-count-info">0 信息</span></span>
+              <span class="legend__item"><i class="legend__dot" data-kind="warn"></i><span id="log-count-warn">0 警告</span></span>
+              <span class="legend__item"><i class="legend__dot" data-kind="err"></i><span id="log-count-err">0 错误</span></span>
             </div>
           </section>
 
-          <h2 class="group-title">日志</h2>
-          <section class="card list">
-            <div class="row">
-              <div class="row__text">
-                <span class="row__title">显示日志</span>
-                <span class="row__hint">在底部导航中显示运行日志页签</span>
+          <div class="chips" id="log-filters" role="tablist" aria-label="日志筛选">
+            <button class="chip is-on" type="button" data-log-filter="all" aria-pressed="true">全部</button>
+            <button class="chip" type="button" data-log-filter="info" aria-pressed="false">信息</button>
+            <button class="chip" type="button" data-log-filter="warn" aria-pressed="false">警告</button>
+            <button class="chip" type="button" data-log-filter="err" aria-pressed="false">错误</button>
+          </div>
+
+          <div class="list-head">
+            <span class="list-head__title">最新记录</span>
+            <div class="list-head__actions">
+              <button id="log-refresh" class="text-btn" type="button">刷新状态</button>
+              <button id="log-clear" class="text-btn" type="button">清空</button>
+            </div>
+          </div>
+
+          <div id="log-list" class="log-list" aria-live="polite"></div>
+        </section>
+
+        <section id="panel-settings" class="panel" data-panel="settings" hidden>
+          <h1 class="page-title" aria-hidden="true">设置</h1>
+
+          <section class="hero-card">
+            <span class="app-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M4 8h4V4H4v4Zm6 12h4v-4h-4v4Zm-6 0h4v-4H4v4Zm0-6h4v-4H4v4Zm6 0h4v-4h-4v4Zm6-10v4h4V4h-4Zm-6 4h4V4h-4v4Zm6 6h4v-4h-4v4Zm0 6h4v-4h-4v4Z"/></svg>
+            </span>
+            <div class="hero-card__text">
+              <div class="hero-card__title">系统应用转换</div>
+              <div class="hero-card__meta">App Systemizer · <span id="info-version">—</span></div>
+            </div>
+            <span class="chip-outline" id="module-chip">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>已启用
+            </span>
+          </section>
+
+          <h2 class="group">外观</h2>
+          <section class="card">
+            <button id="theme-row" class="setting" type="button">
+              <span class="swatch" id="theme-swatch" aria-hidden="true"></span>
+              <span class="setting__text">
+                <span class="setting__title">主题色</span>
+                <span class="setting__sub">自定义主色，可以直接输入色号</span>
+              </span>
+              <span class="hex-value" id="theme-value">跟随系统</span>
+              <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.29 6.71a1 1 0 0 0 0 1.41L13.17 12l-3.88 3.88a1 1 0 1 0 1.42 1.41l4.58-4.58a1 1 0 0 0 0-1.42L10.7 6.7a1 1 0 0 0-1.41 0Z"/></svg>
+            </button>
+          </section>
+
+          <h2 class="group">日志</h2>
+          <section class="card">
+            <div class="setting">
+              <div class="setting__text">
+                <span class="setting__title">显示日志</span>
+                <span class="setting__sub">在底部导航中显示日志页签，并记录命令输出</span>
               </div>
               <label class="switch">
                 <input id="log-enabled" type="checkbox" aria-label="显示日志">
@@ -113,11 +150,12 @@
             </div>
           </section>
 
-          <h2 class="group-title">关于</h2>
+          <h2 class="group">关于</h2>
           <section class="card">
-            <div class="info-row"><span>模块版本</span><span id="info-version">—</span></div>
-            <div class="info-row"><span>数据目录</span><span id="info-data-dir" class="mono">/data/adb/app-systemizer</span></div>
-            <div class="info-row"><span>选择清单</span><span class="mono">config/selections.tsv</span></div>
+            <div class="info"><span class="info__k">元模块</span><span class="info__v" id="info-metamodule">—</span></div>
+            <div class="info"><span class="info__k">数据目录</span><span class="info__v mono" id="info-data-dir">/data/adb/app-systemizer</span></div>
+            <div class="info"><span class="info__k">选择清单</span><span class="info__v mono">config/selections.tsv</span></div>
+            <div class="info"><span class="info__k">日志上限</span><span class="info__v">300 条</span></div>
           </section>
         </section>
       </main>
@@ -128,46 +166,94 @@
       <span id="pull-text">下拉刷新</span>
     </div>
 
-    <div class="save-bar" id="save-bar">
-      <span id="selection-summary">未选择应用</span>
-      <button id="save" class="primary-button" type="button" disabled>保存选择</button>
-    </div>
+    <button id="save" class="fab" type="button" hidden>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4Zm-5 16a3 3 0 1 1 0-6 3 3 0 0 1 0 6Zm3-10H5V5h10v4Z"/></svg>
+      <span id="save-label">保存更改</span>
+    </button>
 
     <nav class="bottom-nav" aria-label="页面切换">
-      <button class="nav-tab active" type="button" data-tab="apps" aria-current="page">
-        <span class="nav-tab__icon"><svg class="nav-icon--filled" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 4.5c.28 0 .5.22.5.5v2h6v6h2c.28 0 .5.22.5.5s-.22.5-.5.5h-2v6h-2.12c-.68-1.75-2.39-3-4.38-3s-3.7 1.25-4.38 3H4v-2.12c1.75-.68 3-2.39 3-4.38 0-1.99-1.24-3.7-2.99-4.38L4 7h6V5c0-.28.22-.5.5-.5m0-2C9.12 2.5 8 3.62 8 5H4c-1.1 0-1.99.9-1.99 2v3.8h.29c1.49 0 2.7 1.21 2.7 2.7s-1.21 2.7-2.7 2.7H2V20c0 1.1.9 2 2 2h3.8v-.3c0-1.49 1.21-2.7 2.7-2.7s2.7 1.21 2.7 2.7v.3H17c1.1 0 2-.9 2-2v-4c1.38 0 2.5-1.12 2.5-2.5S20.38 11 19 11V7c0-1.1-.9-2-2-2h-4c0-1.38-1.12-2.5-2.5-2.5z"/></svg><svg class="nav-icon--outline" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="6.5" height="6.5" rx="1.5"/><rect x="14" y="3.5" width="6.5" height="6.5" rx="1.5"/><rect x="3.5" y="14" width="6.5" height="6.5" rx="1.5"/><rect x="14" y="14" width="6.5" height="6.5" rx="1.5"/></svg></span>
+      <button class="nav-tab" type="button" data-tab="apps" aria-current="page" aria-label="应用">
+        <span class="nav-tab__pill"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h4V4H4v4Zm6 12h4v-4h-4v4Zm-6 0h4v-4H4v4Zm0-6h4v-4H4v4Zm6 0h4v-4h-4v4Zm6-10v4h4V4h-4Zm-6 4h4V4h-4v4Zm6 6h4v-4h-4v4Zm0 6h4v-4h-4v4Z"/></svg></span>
         <span class="nav-tab__label">应用</span>
       </button>
-      <button class="nav-tab" type="button" data-tab="logs">
-        <span class="nav-tab__icon"><svg class="nav-icon--filled" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zm2 16H8v-2h8zm0-4H8v-2h8zM13 9V3.5L18.5 9z"/></svg><svg class="nav-icon--outline" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.5h7L18.5 9v11.5H6zM13 3.5V9h5.5M9 13h6M9 16.5h6"/></svg></span>
+      <button class="nav-tab" type="button" data-tab="logs" aria-label="日志">
+        <span class="nav-tab__pill"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Zm2 16H8v-2h8v2Zm0-4H8v-2h8v2Zm-3-5V3.5L18.5 9H13Z"/></svg></span>
         <span class="nav-tab__label">日志</span>
       </button>
-      <button class="nav-tab" type="button" data-tab="settings">
-        <span class="nav-tab__icon"><svg class="nav-icon--filled" viewBox="0 0 24 24" aria-hidden="true"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.5.5 0 0 0 .12-.61l-1.92-3.32a.5.5 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.48.48 0 0 0-.48-.41h-3.84c-.24 0-.44.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.5.5 0 0 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.5.5 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.5.5 0 0 0-.12-.61zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z"/></svg><svg class="nav-icon--outline" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2.5 8 4.75v9.5l-8 4.75-8-4.75v-9.5z"/><circle cx="12" cy="12" r="3.25"/></svg></span>
+      <button class="nav-tab" type="button" data-tab="settings" aria-label="设置">
+        <span class="nav-tab__pill"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.5.5 0 0 0 .12-.61l-1.92-3.32a.5.5 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.48.48 0 0 0-.48-.41h-3.84c-.24 0-.44.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.5.5 0 0 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.5.5 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.5.5 0 0 0-.12-.61zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z"/></svg></span>
         <span class="nav-tab__label">设置</span>
       </button>
     </nav>
 
-    <dialog id="reboot-dialog" class="modal" tabindex="-1" aria-labelledby="reboot-dialog-title">
+    <dialog id="reboot-dialog" class="modal" aria-labelledby="reboot-dialog-title">
       <div class="modal__inner">
+        <span class="modal__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M17.65 6.35A7.96 7.96 0 0 0 12 4a8 8 0 1 0 7.73 10h-2.08A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35Z"/></svg>
+        </span>
         <h2 class="modal__title" id="reboot-dialog-title">重启系统？</h2>
-        <p class="modal__body">确定要重启设备吗？</p>
+        <p class="modal__body">确定要重启设备吗？挂载会在开机后生效。</p>
         <div class="modal__actions">
-          <button id="reboot-cancel" class="modal__button" type="button">取消</button>
-          <button id="reboot-confirm" class="modal__button modal__button--primary" type="button">确认</button>
+          <button id="reboot-cancel" class="text-btn" type="button">取消</button>
+          <button id="reboot-confirm" class="text-btn text-btn--strong" type="button">立即重启</button>
         </div>
       </div>
     </dialog>
 
-    <dialog id="confirm-dialog" class="modal" tabindex="-1" aria-labelledby="confirm-dialog-title">
+    <dialog id="confirm-dialog" class="modal" aria-labelledby="confirm-dialog-title">
       <div class="modal__inner">
+        <span class="modal__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4Zm-5 16a3 3 0 1 1 0-6 3 3 0 0 1 0 6Zm3-10H5V5h10v4Z"/></svg>
+        </span>
         <h2 class="modal__title" id="confirm-dialog-title">确认写入模块配置</h2>
         <p id="confirm-text" class="modal__body"></p>
-        <p class="modal__warn">保存会复制所选应用的 base APK 与 split APK 到模块数据目录，由 Magic Mount-rs 在重启后挂载，系统重新扫描后生效。</p>
+        <p class="modal__warn">保存会复制所选应用的 base APK 与 split APK 到模块数据目录，由 Magic Mount-rs 在重启后挂载；取消选择并保存即可撤销。</p>
         <pre id="confirm-error" class="modal__error" hidden></pre>
         <div class="modal__actions">
-          <button id="cancel" class="modal__button" type="button">取消</button>
-          <button id="confirm" class="modal__button modal__button--primary" type="button">保存并等待重启</button>
+          <button id="cancel" class="text-btn" type="button">取消</button>
+          <button id="confirm" class="text-btn text-btn--strong" type="button">保存并等待重启</button>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog id="theme-dialog" class="sheet" aria-labelledby="theme-title">
+      <div class="sheet__inner">
+        <span class="sheet__handle" aria-hidden="true"></span>
+        <div class="sheet__head">
+          <h2 class="sheet__title" id="theme-title">选择主题色</h2>
+          <button class="icon-btn" id="theme-close" type="button" aria-label="关闭">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.3 5.71a1 1 0 0 0-1.41 0L12 10.59 7.11 5.7A1 1 0 0 0 5.7 7.11L10.59 12 5.7 16.89a1 1 0 1 0 1.41 1.41L12 13.41l4.89 4.89a1 1 0 0 0 1.41-1.41L13.41 12l4.89-4.89a1 1 0 0 0 0-1.4Z"/></svg>
+          </button>
+        </div>
+
+        <div class="preview" id="theme-preview">
+          <span class="preview__badge" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+          </span>
+          <div class="preview__text">
+            <div class="preview__title">挂载已生效</div>
+            <div class="preview__meta">主色会同步到卡片、按钮与导航指示器</div>
+          </div>
+          <span class="preview__pill">保存 2 项</span>
+        </div>
+
+        <div class="field-label">预设</div>
+        <div class="swatches" id="theme-swatches"></div>
+
+        <div class="field-label">色号</div>
+        <div class="hexfield" id="theme-hexfield">
+          <span class="hexfield__hash">#</span>
+          <input id="theme-hex" class="hexfield__input" type="text" inputmode="latin" autocomplete="off"
+            spellcheck="false" maxlength="6" placeholder="6750A4" aria-label="六位十六进制色号">
+          <button class="hexfield__clear" id="theme-clear" type="button" aria-label="清空色号">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm4.2 12.79-1.41 1.41L12 13.41l-2.79 2.79-1.41-1.41L10.59 12 7.8 9.21l1.41-1.41L12 10.59l2.79-2.79 1.41 1.41L13.41 12l2.79 2.79Z"/></svg>
+          </button>
+        </div>
+        <p class="helper" id="theme-help">输入 6 位十六进制色号，例如 00639B；主色会自动派生出容器色和文字色。</p>
+
+        <div class="sheet__actions">
+          <button class="text-btn" id="theme-system" type="button">使用系统取色</button>
+          <button class="filled-btn" id="theme-apply" type="button">应用主题色</button>
         </div>
       </div>
     </dialog>

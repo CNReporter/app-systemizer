@@ -2,7 +2,7 @@ import { exec } from 'kernelsu';
 
 // KernelSU's MonetColorsProvider exports these roles at /internal/colors.css.
 // Keep the provider's variables isolated: its --primary would otherwise be
-// overwritten by the module's theme defaults.
+// overwritten by the module's MD3 fallback tokens.
 const roles = {
   primary: 'primary', onPrimary: 'on_primary',
   primaryContainer: 'primary_container', onPrimaryContainer: 'on_primary_container',
@@ -23,16 +23,9 @@ const roles = {
   inverseSurface: 'inverse_surface', inverseOnSurface: 'inverse_on_surface',
 };
 const required = ['primary', 'onPrimary', 'primaryContainer', 'onPrimaryContainer', 'secondaryContainer', 'onSecondaryContainer'];
-// Material 3 maps the whole dynamic palette onto --sys-*. Miuix keeps its own
-// neutral surfaces and never reads --sys-*, so it only takes --accent-primary.
-// Which role feeds the accent depends on the appearance: Material 3's dark
-// primary is tone 80, a pastel meant as foreground on dark surfaces, and Miuix
-// pairs a vivid accent with white text instead. In dark mode its primary and
-// primaryContainer are both saturated (#277af7 / #338fe4), so the container
-// pair — the vivid fill with its matching pale foreground — is the analogous
-// mapping.
-const accentProperties = { '--accent-primary': 'primary', '--accent-on-primary': 'onPrimary' };
-const accentPropertiesDark = { '--accent-primary': 'primaryContainer', '--accent-on-primary': 'onPrimaryContainer' };
+// The whole dynamic palette maps onto --sys-*, which app.css consumes through
+// its --md-* tokens. Dark mode uses the system's own dark roles, so the same
+// mapping works for both appearances.
 const materialProperties = {
   '--sys-primary': 'primary', '--sys-on-primary': 'onPrimary',
   '--sys-primary-container': 'primaryContainer', '--sys-on-primary-container': 'onPrimaryContainer',
@@ -52,7 +45,8 @@ const materialProperties = {
   '--sys-outline': 'outline', '--sys-outline-variant': 'outlineVariant',
   '--sys-inverse-surface': 'inverseSurface', '--sys-inverse-on-surface': 'inverseOnSurface',
 };
-const ownedProperties = [...Object.keys(accentProperties), ...Object.keys(materialProperties)];const palettes = new Map();
+const ownedProperties = Object.keys(materialProperties);
+const palettes = new Map();
 let colorScheme;
 let requestId = 0;
 let refreshTimer;
@@ -144,13 +138,8 @@ export function applySystemColors() {
   const dark = colorScheme.matches;
   const palette = palettes.get(dark);
   if (!palette) return;
-  for (const [property, role] of Object.entries(dark ? accentPropertiesDark : accentProperties)) {
+  for (const [property, role] of Object.entries(materialProperties)) {
     if (palette.colors[role]) root.style.setProperty(property, palette.colors[role]);
-  }
-  if (root.dataset.theme === 'md3') {
-    for (const [property, role] of Object.entries(materialProperties)) {
-      if (palette.colors[role]) root.style.setProperty(property, palette.colors[role]);
-    }
   }
   root.dataset.systemColors = palette.source;
 }

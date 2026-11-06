@@ -1,16 +1,18 @@
 import { exec, getPackagesInfo, listPackages, toast } from 'kernelsu';
 import appSystemizer from './module-info.json';
-import { applySystemColors, initSystemColors } from './system-colors.js';
+import { initSystemColors } from './system-colors.js';
+import { initTheme, applyTheme, normalizeHex, storeTheme, PRESETS } from './theme.js';
 
 const CONTROL = `/data/adb/modules/${appSystemizer.id}/scripts/app-systemizer.sh`;
+const THEME_KEY = `${appSystemizer.id}-theme`;
 const state = {
   apps: [],
   selected: new Map(),
   saved: new Map(),
   filter: '',
+  logFilter: 'all',
   logs: [],
   logEnabled: false,
-  theme: 'md3',
   pendingReboot: false,
   refreshing: false,
   defaultTarget: 'app',
@@ -30,30 +32,54 @@ function log(kind, text) {
 }
 
 function renderLogs() {
+  const entries = state.logEnabled ? state.logs : [];
+  const counts = { ok: 0, info: 0, warn: 0, err: 0 };
+  for (const entry of entries) counts[entry.kind] = (counts[entry.kind] || 0) + 1;
+
+  $('#log-count-ok').textContent = `${counts.ok} OK`;
+  $('#log-count-info').textContent = `${counts.info} 信息`;
+  $('#log-count-warn').textContent = `${counts.warn} 警告`;
+  $('#log-count-err').textContent = `${counts.err} 错误`;
+  $('#log-hero-title').textContent = `今天 · ${entries.length} 条记录`;
+  $('#log-hero-meta').textContent = entries.length
+    ? `${entries[0].time.toLocaleTimeString('zh-CN', { hour12: false })} – ${entries[entries.length - 1].time.toLocaleTimeString('zh-CN', { hour12: false })} · 自动记录命令输出`
+    : (state.logEnabled ? '还没有记录任何命令输出' : '日志已关闭，不记录任何输出');
+
+  for (const button of document.querySelectorAll('[data-log-filter]')) {
+    const active = button.dataset.logFilter === state.logFilter;
+    button.classList.toggle('is-on', active);
+    button.setAttribute('aria-pressed', String(active));
+  }
+
   const box = $('#log-list');
   box.replaceChildren();
-  const visible = state.logEnabled ? state.logs : [];
+  const visible = entries.filter((entry) => state.logFilter === 'all' || entry.kind === state.logFilter);
   if (!visible.length) {
     const empty = document.createElement('p');
     empty.className = 'log-empty';
-    empty.textContent = state.logEnabled ? '暂无日志。执行一次保存或刷新即可看到。' : '日志已关闭，不记录任何输出。';
+    empty.textContent = entries.length
+      ? '这个筛选下没有记录。'
+      : (state.logEnabled ? '暂无日志。执行一次保存或刷新即可看到。' : '日志已关闭，不记录任何输出。');
     box.append(empty);
     return;
   }
   const fragment = document.createDocumentFragment();
   for (const entry of [...visible].reverse()) {
     const line = document.createElement('div');
-    line.className = 'log-line';
+    line.className = 'log';
+    const top = document.createElement('div');
+    top.className = 'log__top';
     const time = document.createElement('span');
-    time.className = 'log-time';
+    time.className = 'log__time';
     time.textContent = entry.time.toLocaleTimeString('zh-CN', { hour12: false });
-    const badge = document.createElement('span');
-    badge.className = `log-badge ${entry.kind}`;
-    badge.textContent = entry.kind === 'ok' ? 'OK' : entry.kind === 'err' ? '错误' : entry.kind === 'warn' ? '警告' : '信息';
-    const text = document.createElement('span');
-    text.className = 'log-text';
+    const tag = document.createElement('span');
+    tag.className = `tag ${entry.kind}`;
+    tag.textContent = entry.kind === 'ok' ? 'OK' : entry.kind === 'err' ? '错误' : entry.kind === 'warn' ? '警告' : '信息';
+    top.append(time, tag);
+    const text = document.createElement('p');
+    text.className = 'log__text';
     text.textContent = entry.text;
-    line.append(time, badge, text);
+    line.append(top, text);
     fragment.append(line);
   }
   box.append(fragment);
@@ -63,7 +89,7 @@ function readStorage(key, fallback) {
   try {
     let value = localStorage.getItem(key);
     // One-time migration of preferences from the previous module name.
-    const legacyKey = { 'app-systemizer-theme': 'sap-theme', 'app-systemizer-log-enabled': 'sap-log-enabled' }[key];
+    const legacyKey = { 'app-systemizer-log-enabled': 'sap-log-enabled' }[key];
     if (value == null && legacyKey) {
       value = localStorage.getItem(legacyKey);
       if (value != null) {
@@ -81,53 +107,21 @@ function writeStorage(key, value) {
   try { localStorage.setItem(key, value); } catch (_) {  }
 }
 
-function applyTheme() {
-  document.documentElement.dataset.theme = state.theme;
-  applySystemColors();
-  document.querySelectorAll('[data-theme-option]').forEach((button) => {
-    const active = button.dataset.themeOption === state.theme;
-    button.setAttribute('aria-checked', String(active));
-    // Roving tabindex keeps the whole group to a single tab stop.
-    button.tabIndex = active ? 0 : -1;
-  });
-}
-
-function initThemePicker() {
-  const options = [...document.querySelectorAll('[data-theme-option]')];
-  const select = (option, { focus = false } = {}) => {
-    state.theme = option.dataset.themeOption;
-    writeStorage(`${appSystemizer.id}-theme`, state.theme);
-    applyTheme();
-    if (focus) option.focus({ preventScroll: true });
-    log('info', `UI 风格切换为 ${state.theme === 'md3' ? 'Material 3' : 'Miuix'}`);
-  };
-  for (const option of options) {
-    option.addEventListener('click', () => select(option));
-  }
-  $('#theme-options').addEventListener('keydown', (event) => {
-    const current = options.indexOf(document.activeElement);
-    if (current === -1) return;
-    const last = options.length - 1;
-    let next;
-    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') next = current === last ? 0 : current + 1;
-    else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') next = current === 0 ? last : current - 1;
-    else if (event.key === 'Home') next = 0;
-    else if (event.key === 'End') next = last;
-    else return;
-    event.preventDefault();
-    // A radio group moves the selection with focus, like a native radio set.
-    select(options[next], { focus: true });
-  });
+// The log tab only exists while 设置 → 显示日志 is on; leaving the page while
+// it is hidden would strand the user on a tab with no navigation entry.
+function syncLogTab() {
+  const tab = document.querySelector('.nav-tab[data-tab="logs"]');
+  if (!tab) return;
+  tab.hidden = !state.logEnabled;
+  if (!state.logEnabled && activeTab() === 'logs') switchTab('apps');
 }
 
 function initSettings() {
-  const savedTheme = readStorage(`${appSystemizer.id}-theme`, 'md3');
-  state.theme = savedTheme === 'miuix' ? 'miuix' : 'md3';
   state.logEnabled = readStorage(`${appSystemizer.id}-log-enabled`, '0') === '1';
 
-  applyTheme();
   const logSwitch = $('#log-enabled');
   logSwitch.checked = state.logEnabled;
+  syncLogTab();
   logSwitch.addEventListener('change', () => {
     if (logSwitch.checked) {
       state.logEnabled = true;
@@ -139,21 +133,128 @@ function initSettings() {
       state.logEnabled = false;
       writeStorage(`${appSystemizer.id}-log-enabled`, '0');
     }
+    syncLogTab();
     renderLogs();
+  });
+}
+
+/* --------------------------------------------------------------- 主题色 */
+
+let currentSeed = null;
+let pendingSeed = null;
+let themeCommitting = false;
+
+function paintThemeRow() {
+  $('#theme-value').textContent = currentSeed ? currentSeed.toUpperCase() : '跟随系统';
+}
+
+function syncSwatches() {
+  for (const button of document.querySelectorAll('[data-preset]')) {
+    button.setAttribute('aria-pressed', String(pendingSeed === button.dataset.preset));
+  }
+}
+
+function previewSeed(seed) {
+  pendingSeed = seed;
+  applyTheme(seed);
+  syncSwatches();
+  $('#theme-apply').disabled = !seed;
+}
+
+function openTheme() {
+  pendingSeed = currentSeed;
+  $('#theme-hex').value = currentSeed ? currentSeed.slice(1).toUpperCase() : '';
+  previewSeed(currentSeed);
+  $('#theme-dialog').showModal();
+}
+
+function initThemeSheet() {
+  currentSeed = initTheme(THEME_KEY);
+  paintThemeRow();
+
+  const swatches = $('#theme-swatches');
+  for (const preset of PRESETS) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'color';
+    button.dataset.preset = preset.color;
+    button.style.setProperty('--c', preset.color);
+    button.setAttribute('aria-label', preset.name);
+    button.setAttribute('aria-pressed', 'false');
+    button.innerHTML = '<svg viewBox="0 0 24 24"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
+    button.addEventListener('click', () => {
+      $('#theme-hex').value = preset.color.slice(1).toUpperCase();
+      previewSeed(preset.color);
+    });
+    swatches.append(button);
+  }
+
+  const input = $('#theme-hex');
+  input.addEventListener('input', () => {
+    const raw = input.value.replace(/[^0-9a-fA-F]/g, '').slice(0, 6).toUpperCase();
+    if (raw !== input.value) input.value = raw;
+    const hex = raw.length === 6 ? normalizeHex(raw) : null;
+    if (hex) {
+      previewSeed(hex);
+    } else {
+      pendingSeed = null;
+      applyTheme(currentSeed);
+      syncSwatches();
+      $('#theme-apply').disabled = true;
+    }
+  });
+
+  $('#theme-clear').addEventListener('click', () => {
+    input.value = '';
+    input.focus();
+    pendingSeed = null;
+    applyTheme(currentSeed);
+    syncSwatches();
+    $('#theme-apply').disabled = true;
+  });
+
+  $('#theme-row').addEventListener('click', openTheme);
+  $('#theme-close').addEventListener('click', () => $('#theme-dialog').close());
+
+  $('#theme-apply').addEventListener('click', () => {
+    if (!pendingSeed) return;
+    themeCommitting = true;
+    currentSeed = pendingSeed;
+    storeTheme(THEME_KEY, currentSeed);
+    $('#theme-dialog').close();
+  });
+
+  $('#theme-system').addEventListener('click', () => {
+    themeCommitting = true;
+    currentSeed = null;
+    pendingSeed = null;
+    storeTheme(THEME_KEY, null);
+    applyTheme(null);
+    $('#theme-dialog').close();
+  });
+
+  // 关闭（含 Esc / 点遮罩）时，未应用的选择回退到已保存的主题色。
+  $('#theme-dialog').addEventListener('close', () => {
+    if (!themeCommitting) applyTheme(currentSeed);
+    themeCommitting = false;
+    pendingSeed = currentSeed;
+    paintThemeRow();
+  });
+
+  $('#theme-dialog').addEventListener('click', (event) => {
+    if (event.target === $('#theme-dialog')) $('#theme-dialog').close();
   });
 }
 
 const TAB_TITLES = { apps: '系统应用转换', logs: '运行日志', settings: '设置' };
 
 function switchTab(name) {
-  closeTargetMenu();
   document.body.dataset.tab = name;
-  // Miuix collapses the bar to a small centred title, so it has to match the
-  // page it is above rather than keep the first page's name.
+  // The bar title replaces the large page title once it scrolls away, so it has
+  // to match the page it is above.
   $('.top-bar__title').textContent = TAB_TITLES[name] || TAB_TITLES.apps;
   document.querySelectorAll('.nav-tab').forEach((button) => {
     const active = button.dataset.tab === name;
-    button.classList.toggle('active', active);
     if (active) button.setAttribute('aria-current', 'page');
     else button.removeAttribute('aria-current');
   });
@@ -264,7 +365,7 @@ function initPullGesture() {
     allowDown = false;
     allowUp = false;
     if (busy || event.touches.length !== 1) return;
-    if (event.target.closest('.target-select, dialog, button, input, .bottom-nav')) return;
+    if (event.target.closest('dialog, button, input, .bottom-nav')) return;
     const touch = event.touches[0];
     startX = touch.clientX;
     startY = touch.clientY;
@@ -364,60 +465,40 @@ function targetLabel(target) {
   return target === 'priv-app' ? '/system/priv-app' : '/system/app';
 }
 
-function closeTargetMenu({ restoreFocus = false } = {}) {
-  $('#target-menu').hidden = true;
-  $('#target-default').setAttribute('aria-expanded', 'false');
-  if (restoreFocus) $('#target-default').focus();
-}
-
-function initTargetMenu() {
-  const trigger = $('#target-default');
-  const menu = $('#target-menu');
-  const options = [...menu.querySelectorAll('[role="option"]')];
-  const open = (index = options.findIndex((option) => option.dataset.value === state.defaultTarget)) => {
-    menu.hidden = false;
-    trigger.setAttribute('aria-expanded', 'true');
-    options[index].focus({ preventScroll: true });
+// 目标目录是一组互斥的分段按钮：点击或方向键选择都会更新默认目标，
+// 只影响此后新勾选的应用，已有选择保留各自的目标目录。
+function initTargetSegments() {
+  const group = $('#target-options');
+  const options = [...group.querySelectorAll('[data-target-option]')];
+  const select = (option, { focus = false } = {}) => {
+    const next = option.dataset.targetOption;
+    const changed = state.defaultTarget !== next;
+    state.defaultTarget = next;
+    for (const item of options) {
+      const active = item === option;
+      item.setAttribute('aria-checked', String(active));
+      // Roving tabindex keeps the whole group to a single tab stop.
+      item.tabIndex = active ? 0 : -1;
+    }
+    if (focus) option.focus({ preventScroll: true });
+    if (changed) log('info', `目标目录切换为 ${targetLabel(state.defaultTarget)}`);
   };
-  trigger.addEventListener('click', () => menu.hidden ? open() : closeTargetMenu());
-  trigger.addEventListener('keydown', (event) => {
-    if (['ArrowDown', 'ArrowUp'].includes(event.key)) {
-      event.preventDefault();
-      open(event.key === 'ArrowUp' ? options.length - 1 : undefined);
-    }
-  });
   for (const option of options) {
-    option.addEventListener('click', () => {
-      state.defaultTarget = option.dataset.value;
-      $('#target-value').textContent = targetLabel(state.defaultTarget);
-      for (const item of options) item.setAttribute('aria-selected', String(item === option));
-      closeTargetMenu({ restoreFocus: true });
-    });
+    option.addEventListener('click', () => select(option));
   }
-  menu.addEventListener('keydown', (event) => {
-    const index = options.indexOf(document.activeElement);
-    const next = {
-      ArrowDown: (index + 1) % options.length,
-      ArrowUp: (index - 1 + options.length) % options.length,
-      Home: 0,
-      End: options.length - 1,
-    }[event.key];
-    if (next !== undefined) {
-      event.preventDefault();
-      options[next].focus({ preventScroll: true });
-    }
-  });
-  document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && !menu.hidden) {
-      event.preventDefault();
-      closeTargetMenu({ restoreFocus: true });
-    }
-  });
-  document.addEventListener('pointerdown', (event) => {
-    if (!event.target.closest('.target-select')) closeTargetMenu();
-  });
-  document.addEventListener('focusin', (event) => {
-    if (!event.target.closest('.target-select')) closeTargetMenu();
+  group.addEventListener('keydown', (event) => {
+    const current = options.indexOf(document.activeElement);
+    if (current === -1) return;
+    const last = options.length - 1;
+    let next;
+    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') next = current === last ? 0 : current + 1;
+    else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') next = current === 0 ? last : current - 1;
+    else if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = last;
+    else return;
+    event.preventDefault();
+    // A radio group moves the selection with focus, like a native radio set.
+    select(options[next], { focus: true });
   });
 }
 
@@ -433,25 +514,30 @@ function refreshSummary() {
   if (!size) {
     summary.textContent = '未选择应用';
   } else if (changed) {
-    summary.textContent = `已选 ${size} 个应用，修改尚未保存`;
+    summary.textContent = `已选 ${size} 个 · 修改未保存`;
   } else if (state.pendingReboot) {
-    summary.textContent = `已选 ${size} 个应用，已保存，重启后生效`;
+    summary.textContent = `已选 ${size} 个 · 等待重启`;
   } else {
-    summary.textContent = `已选 ${size} 个应用，配置已生效`;
+    summary.textContent = `已选 ${size} 个 · 已生效`;
   }
+  summary.dataset.state = changed ? 'dirty' : 'clean';
+  // The extended FAB only exists while there is something to write.
+  save.hidden = !changed;
   save.disabled = !changed;
+  $('#save-label').textContent = size ? `保存 ${size} 项` : '保存更改';
   const clearButton = $('#clear-selection');
   if (clearButton) clearButton.disabled = size === 0;
 }
 
 async function updateMountStatus() {
   const card = $('#status-card');
-  const label = $('#status-label');
-  const element = $('#mount-status');
-  const setState = (stateName, title, summary) => {
+  const setState = (stateName, title, chip, apps, hero, summary) => {
     if (card) card.dataset.state = stateName;
-    if (label) label.textContent = title;
-    if (element) element.textContent = summary;
+    $('#status-label').textContent = title;
+    $('#status-chip').textContent = chip;
+    $('#status-apps').textContent = String(apps);
+    $('#status-hero').textContent = hero;
+    $('#mount-status').textContent = summary;
   };
   try {
     const result = await exec(`${CONTROL} status`);
@@ -465,26 +551,29 @@ async function updateMountStatus() {
     // mtime with the kernel boot time, so it stays correct across WebUI restarts.
     const pending = /PENDING_REBOOT=1/.test(output);
     state.pendingReboot = pending;
-    // One app can contribute several files (base APK + split APKs), so always
-    // show both counts to avoid the "3 apps but 4 APKs" confusion.
-    const stagedText = `${apps} 个应用（${apks} 个 APK 文件）`;
+    const metamodule = $('#info-metamodule');
+    if (metamodule) metamodule.textContent = metamoduleId || (metamoduleActive ? 'Magic Mount-rs' : '未检测到');
+
+    // One app can contribute several files (base APK + split APKs), so the
+    // number is the mounted app count and the line below carries the APK count.
     if (!metamoduleActive) {
-      setState('err', '未检测到挂载元模块', '请先安装并启用 Magic Mount-rs，否则重启后不会成为系统应用。');
+      setState('err', '未检测到挂载元模块', '需配置', 0, '个应用已托管', '请先安装并启用 Magic Mount-rs');
     } else if (pending) {
-      setState('pending', '配置已保存，等待重启', `已保存 ${stagedText} 的新配置，重启后才会挂载生效。`);
+      setState('pending', '配置已保存，等待重启', '待重启', apps, '个应用待生效', `已暂存 ${apks} 个 APK 文件`);
     } else if (!apps) {
-      setState('ok', '当前没有配置任何应用', '勾选应用并保存，重启后即可成为系统应用。');
+      setState('ok', '当前没有配置任何应用', '空', 0, '个应用已托管', '勾选应用并保存，重启后生效');
     } else if (!systemMountActive) {
       const other = metamoduleId && !/magic/i.test(metamoduleId);
       setState('warn',
-        other ? `当前元模块为 ${metamoduleId}` : '已启用 Magic Mount-rs',
-        other ? `未检测到绑定挂载；已暂存 ${stagedText}，建议改用 Magic Mount-rs 后重启。` : `已暂存 ${stagedText}，但未检测到挂载，请重启后查看。`);
+        other ? '元模块不支持绑定挂载' : '已启用 Magic Mount-rs',
+        other ? '未挂载' : '待挂载',
+        apps, '个应用待挂载', `已暂存 ${apks} 个 APK 文件`);
     } else {
-      setState('ok', '挂载已生效', `当前已挂载 ${stagedText}。`);
+      setState('ok', '挂载已生效', '已生效', apps, '个应用已托管', `共 ${apks} 个 APK 文件 · 开机自动挂载`);
     }
     log(result.errno === 0 ? 'ok' : 'warn', `挂载检查：${output.trim() || '(空输出)'}`);
   } catch (error) {
-    setState('err', '无法读取挂载状态', '请确认从 KernelSU Manager 内打开本页面。');
+    setState('err', '无法读取挂载状态', '错误', 0, '个应用已托管', '请从 KernelSU 管理器内打开此页面');
     log('err', `挂载检查失败：${error.message || error}`);
   }
   refreshSummary();
@@ -497,7 +586,8 @@ function visibleApps() {
 
 function render() {
   const apps = visibleApps();
-  count.textContent = `显示 ${apps.length} / ${state.apps.length} 个应用`;
+  count.textContent = String(apps.length);
+  count.title = `显示 ${apps.length} / ${state.apps.length} 个应用`;
   list.replaceChildren();
   if (!apps.length) {
     list.innerHTML = '<p class="empty">没有匹配的应用</p>';
@@ -510,7 +600,7 @@ function render() {
     // editable so they can be unselected without clearing everything.
     const locked = app.isSystem && !state.saved.has(app.packageName);
     const row = document.createElement('div');
-    row.className = `app ${selectedTarget ? 'selected' : ''}`;
+    row.className = `row${selectedTarget ? ' is-selected' : ''}${locked ? ' is-locked' : ''}`;
     row.setAttribute('role', 'checkbox');
     row.setAttribute('aria-checked', String(Boolean(selectedTarget)));
     if (locked) row.setAttribute('aria-disabled', 'true');
@@ -529,28 +619,33 @@ function render() {
     row.addEventListener('keydown', (event) => {
       if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggle(); }
     });
-    const check = document.createElement('span');
-    check.className = 'checkbox';
-    check.setAttribute('aria-hidden', 'true');
-    check.dataset.checked = selectedTarget ? 'true' : 'false';
+
     const icon = document.createElement('img');
-    icon.className = 'app-icon'; icon.alt = ''; icon.src = `ksu://icon/${app.packageName}`;
+    icon.className = 'row__icon'; icon.alt = ''; icon.src = `ksu://icon/${app.packageName}`;
     icon.onerror = () => { icon.style.visibility = 'hidden'; };
-    const info = document.createElement('div');
-    info.className = 'app-info';
-    const name = document.createElement('div'); name.className = 'app-name'; name.textContent = app.appLabel || app.packageName;
-    const pkg = document.createElement('div'); pkg.className = 'package'; pkg.textContent = app.packageName;
-    info.append(name, pkg);
-    row.append(check, icon, info);
-    if (selectedTarget) {
-      const side = document.createElement('div');
-      side.className = 'side-badge target'; side.textContent = `本模块管理 · ${targetLabel(selectedTarget)}`;
-      info.append(side);
-    } else if (app.isSystem) {
-      const side = document.createElement('div');
-      side.className = 'side-badge badge'; side.textContent = '已是系统应用';
-      info.append(side);
+
+    const text = document.createElement('div');
+    text.className = 'row__text';
+    const name = document.createElement('span');
+    name.className = 'row__title';
+    name.textContent = app.appLabel || app.packageName;
+    if (locked) {
+      const tag = document.createElement('span');
+      tag.className = 'row__tag';
+      tag.textContent = '已是系统应用';
+      name.append(tag);
     }
+    const pkg = document.createElement('span');
+    pkg.className = 'row__sub';
+    pkg.textContent = selectedTarget ? `${app.packageName} · ${targetLabel(selectedTarget)}` : app.packageName;
+    text.append(name, pkg);
+
+    const check = document.createElement('span');
+    check.className = `checkbox${selectedTarget ? ' is-on' : ''}`;
+    check.setAttribute('aria-hidden', 'true');
+    check.innerHTML = '<svg viewBox="0 0 24 24"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
+
+    row.append(icon, text, check);
     fragment.append(row);
   }
   list.append(fragment);
@@ -619,6 +714,12 @@ $('#select-visible').addEventListener('click', () => {
 
 document.querySelectorAll('.nav-tab').forEach((button) => {
   button.addEventListener('click', () => switchTab(button.dataset.tab));
+});
+document.querySelectorAll('[data-log-filter]').forEach((button) => {
+  button.addEventListener('click', () => {
+    state.logFilter = button.dataset.logFilter;
+    renderLogs();
+  });
 });
 $('#log-clear').addEventListener('click', () => { state.logs = []; renderLogs(); });
 $('#log-refresh').addEventListener('click', async () => {
@@ -721,10 +822,10 @@ wireModalDismiss($('#confirm-dialog'));
 
 $('#info-version').textContent = appSystemizer.version;
 $('#info-data-dir').textContent = `/data/adb/${appSystemizer.id}`;
+initThemeSheet();
 initSettings();
-initThemePicker();
 initSystemColors();
-initTargetMenu();
+initTargetSegments();
 renderLogs();
 initTopBar();
 initPullGesture();

@@ -80,8 +80,8 @@ function getPackagesInfo(packages) {
 var module_info_default = {
   id: "app-systemizer",
   name: "App Systemizer",
-  version: "1.3.3",
-  versionCode: 1003003
+  version: "1.4.0",
+  versionCode: 1004e3
 };
 
 // module/webroot/system-colors.js
@@ -118,8 +118,6 @@ var roles = {
   inverseOnSurface: "inverse_on_surface"
 };
 var required = ["primary", "onPrimary", "primaryContainer", "onPrimaryContainer", "secondaryContainer", "onSecondaryContainer"];
-var accentProperties = { "--accent-primary": "primary", "--accent-on-primary": "onPrimary" };
-var accentPropertiesDark = { "--accent-primary": "primaryContainer", "--accent-on-primary": "onPrimaryContainer" };
 var materialProperties = {
   "--sys-primary": "primary",
   "--sys-on-primary": "onPrimary",
@@ -151,7 +149,7 @@ var materialProperties = {
   "--sys-inverse-surface": "inverseSurface",
   "--sys-inverse-on-surface": "inverseOnSurface"
 };
-var ownedProperties = [...Object.keys(accentProperties), ...Object.keys(materialProperties)];
+var ownedProperties = Object.keys(materialProperties);
 var palettes = /* @__PURE__ */ new Map();
 var colorScheme;
 var requestId = 0;
@@ -232,13 +230,8 @@ function applySystemColors() {
   const dark = colorScheme.matches;
   const palette = palettes.get(dark);
   if (!palette) return;
-  for (const [property, role] of Object.entries(dark ? accentPropertiesDark : accentProperties)) {
+  for (const [property, role] of Object.entries(materialProperties)) {
     if (palette.colors[role]) root.style.setProperty(property, palette.colors[role]);
-  }
-  if (root.dataset.theme === "md3") {
-    for (const [property, role] of Object.entries(materialProperties)) {
-      if (palette.colors[role]) root.style.setProperty(property, palette.colors[role]);
-    }
   }
   root.dataset.systemColors = palette.source;
 }
@@ -274,16 +267,194 @@ function initSystemColors() {
   void refreshSystemColors();
 }
 
+// module/webroot/theme.js
+var PRESETS = [
+  { name: "\u66AE\u7D2B", color: "#6750A4" },
+  { name: "\u6D77\u84DD", color: "#00639B" },
+  { name: "\u9752\u78A7", color: "#006A6A" },
+  { name: "\u82D4\u7EFF", color: "#3B6939" },
+  { name: "\u7425\u73C0", color: "#7D5700" },
+  { name: "\u6731\u7EA2", color: "#B3261E" }
+];
+var ROLES = [
+  "primary",
+  "on-primary",
+  "primary-container",
+  "on-primary-container",
+  "secondary",
+  "on-secondary",
+  "secondary-container",
+  "on-secondary-container",
+  "tertiary",
+  "on-tertiary",
+  "tertiary-container",
+  "on-tertiary-container",
+  "error",
+  "on-error",
+  "error-container",
+  "on-error-container",
+  "surface",
+  "on-surface",
+  "surface-variant",
+  "on-surface-variant",
+  "surface-container-lowest",
+  "surface-container-low",
+  "surface-container",
+  "surface-container-high",
+  "surface-container-highest",
+  "outline",
+  "outline-variant",
+  "inverse-surface",
+  "inverse-on-surface"
+];
+var scheme;
+var activeSeed = null;
+function normalizeHex(value) {
+  const match = /^#?([0-9a-f]{6})$/i.exec(String(value == null ? "" : value).trim());
+  return match ? `#${match[1].toLowerCase()}` : null;
+}
+function toRgb(hex) {
+  const value = parseInt(hex.slice(1), 16);
+  return [value >> 16 & 255, value >> 8 & 255, value & 255];
+}
+function luminance(hex) {
+  const [r, g, b] = toRgb(hex).map((channel) => {
+    const c = channel / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+function onColor(hex) {
+  return luminance(hex) > 0.5 ? "#121212" : "#ffffff";
+}
+function toHsl(hex) {
+  const [r, g, b] = toRgb(hex).map((channel) => channel / 255);
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  if (max === min) return { h: 0, s: 0, l };
+  const d = max - min;
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  let h;
+  if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+  else if (max === g) h = ((b - r) / d + 2) / 6;
+  else h = ((r - g) / d + 4) / 6;
+  return { h: h * 360, s, l };
+}
+var clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+var hue = (value) => (value % 360 + 360) % 360;
+var tone = (h, s, l) => `hsl(${hue(h).toFixed(1)} ${(clamp(s, 0, 1) * 100).toFixed(1)}% ${(clamp(l, 0, 1) * 100).toFixed(1)}%)`;
+function paletteFor(seed, dark) {
+  const { h, s } = toHsl(seed);
+  const warm = h + 60;
+  const secondary = dark ? tone(h, s * 0.22, 0.8) : tone(h, s * 0.28, 0.42);
+  const tertiary = dark ? tone(warm, s * 0.2, 0.82) : tone(warm, s * 0.3, 0.42);
+  const primary = dark ? tone(h, Math.min(s, 0.72), 0.8) : seed;
+  const palette = {
+    primary,
+    "on-primary": dark ? tone(h, 0.5, 0.16) : onColor(seed),
+    "primary-container": dark ? tone(h, s * 0.72, 0.32) : tone(h, s * 0.9, 0.9),
+    "on-primary-container": dark ? tone(h, s * 0.6, 0.9) : tone(h, Math.min(s, 0.85), 0.18),
+    secondary,
+    "on-secondary": dark ? tone(h, 0.2, 0.18) : onColor(secondary),
+    "secondary-container": dark ? tone(h, s * 0.18, 0.28) : tone(h, s * 0.26, 0.92),
+    "on-secondary-container": dark ? tone(h, s * 0.15, 0.9) : tone(h, s * 0.3, 0.2),
+    tertiary,
+    "on-tertiary": dark ? tone(warm, 0.2, 0.18) : onColor(tertiary),
+    "tertiary-container": dark ? tone(warm, s * 0.22, 0.3) : tone(warm, s * 0.35, 0.92),
+    "on-tertiary-container": dark ? tone(warm, s * 0.2, 0.9) : tone(warm, s * 0.35, 0.2)
+  };
+  if (dark) {
+    Object.assign(palette, {
+      error: "#F2B8B5",
+      "on-error": "#601410",
+      "error-container": "#8C1D18",
+      "on-error-container": "#F9DEDC",
+      surface: tone(h, 0.1, 0.07),
+      "on-surface": tone(h, 0.06, 0.92),
+      "surface-variant": tone(h, 0.08, 0.3),
+      "on-surface-variant": tone(h, 0.06, 0.78),
+      "surface-container-lowest": tone(h, 0.08, 0.05),
+      "surface-container-low": tone(h, 0.08, 0.1),
+      "surface-container": tone(h, 0.08, 0.13),
+      "surface-container-high": tone(h, 0.08, 0.17),
+      "surface-container-highest": tone(h, 0.08, 0.21),
+      outline: tone(h, 0.05, 0.6),
+      "outline-variant": tone(h, 0.06, 0.3),
+      "inverse-surface": tone(h, 0.05, 0.9),
+      "inverse-on-surface": tone(h, 0.06, 0.15)
+    });
+  } else {
+    Object.assign(palette, {
+      error: "#B3261E",
+      "on-error": "#FFFFFF",
+      "error-container": "#F9DEDC",
+      "on-error-container": "#410E0B",
+      surface: tone(h, Math.min(s, 0.4) * 0.5, 0.99),
+      "on-surface": tone(h, 0.12, 0.11),
+      "surface-variant": tone(h, 0.1, 0.9),
+      "on-surface-variant": tone(h, 0.08, 0.33),
+      "surface-container-lowest": "#FFFFFF",
+      "surface-container-low": tone(h, 0.35, 0.975),
+      "surface-container": tone(h, 0.33, 0.955),
+      "surface-container-high": tone(h, 0.3, 0.93),
+      "surface-container-highest": tone(h, 0.28, 0.905),
+      outline: tone(h, 0.06, 0.5),
+      "outline-variant": tone(h, 0.09, 0.8),
+      "inverse-surface": tone(h, 0.08, 0.2),
+      "inverse-on-surface": tone(h, 0.04, 0.95)
+    });
+  }
+  return palette;
+}
+function applyTheme(seed) {
+  activeSeed = seed;
+  const root = document.documentElement;
+  if (!seed) {
+    for (const role of ROLES) root.style.removeProperty(`--md-${role}`);
+    delete root.dataset.customTheme;
+    return;
+  }
+  const dark = Boolean(scheme && scheme.matches);
+  const palette = paletteFor(seed, dark);
+  for (const role of ROLES) root.style.setProperty(`--md-${role}`, palette[role]);
+  root.dataset.customTheme = seed;
+}
+function readTheme(storageKey) {
+  try {
+    return normalizeHex(localStorage.getItem(storageKey));
+  } catch (_) {
+    return null;
+  }
+}
+function storeTheme(storageKey, seed) {
+  try {
+    if (seed) localStorage.setItem(storageKey, seed);
+    else localStorage.removeItem(storageKey);
+  } catch (_) {
+  }
+}
+function initTheme(storageKey) {
+  scheme = window.matchMedia("(prefers-color-scheme: dark)");
+  scheme.addEventListener("change", () => {
+    if (activeSeed) applyTheme(activeSeed);
+  });
+  const seed = readTheme(storageKey);
+  applyTheme(seed);
+  return seed;
+}
+
 // module/webroot/app.js
 var CONTROL = `/data/adb/modules/${module_info_default.id}/scripts/app-systemizer.sh`;
+var THEME_KEY = `${module_info_default.id}-theme`;
 var state = {
   apps: [],
   selected: /* @__PURE__ */ new Map(),
   saved: /* @__PURE__ */ new Map(),
   filter: "",
+  logFilter: "all",
   logs: [],
   logEnabled: false,
-  theme: "md3",
   pendingReboot: false,
   refreshing: false,
   defaultTarget: "app"
@@ -300,30 +471,47 @@ function log(kind, text) {
   if (!$("#panel-logs").hidden) renderLogs();
 }
 function renderLogs() {
+  const entries = state.logEnabled ? state.logs : [];
+  const counts = { ok: 0, info: 0, warn: 0, err: 0 };
+  for (const entry of entries) counts[entry.kind] = (counts[entry.kind] || 0) + 1;
+  $("#log-count-ok").textContent = `${counts.ok} OK`;
+  $("#log-count-info").textContent = `${counts.info} \u4FE1\u606F`;
+  $("#log-count-warn").textContent = `${counts.warn} \u8B66\u544A`;
+  $("#log-count-err").textContent = `${counts.err} \u9519\u8BEF`;
+  $("#log-hero-title").textContent = `\u4ECA\u5929 \xB7 ${entries.length} \u6761\u8BB0\u5F55`;
+  $("#log-hero-meta").textContent = entries.length ? `${entries[0].time.toLocaleTimeString("zh-CN", { hour12: false })} \u2013 ${entries[entries.length - 1].time.toLocaleTimeString("zh-CN", { hour12: false })} \xB7 \u81EA\u52A8\u8BB0\u5F55\u547D\u4EE4\u8F93\u51FA` : state.logEnabled ? "\u8FD8\u6CA1\u6709\u8BB0\u5F55\u4EFB\u4F55\u547D\u4EE4\u8F93\u51FA" : "\u65E5\u5FD7\u5DF2\u5173\u95ED\uFF0C\u4E0D\u8BB0\u5F55\u4EFB\u4F55\u8F93\u51FA";
+  for (const button of document.querySelectorAll("[data-log-filter]")) {
+    const active = button.dataset.logFilter === state.logFilter;
+    button.classList.toggle("is-on", active);
+    button.setAttribute("aria-pressed", String(active));
+  }
   const box = $("#log-list");
   box.replaceChildren();
-  const visible = state.logEnabled ? state.logs : [];
+  const visible = entries.filter((entry) => state.logFilter === "all" || entry.kind === state.logFilter);
   if (!visible.length) {
     const empty = document.createElement("p");
     empty.className = "log-empty";
-    empty.textContent = state.logEnabled ? "\u6682\u65E0\u65E5\u5FD7\u3002\u6267\u884C\u4E00\u6B21\u4FDD\u5B58\u6216\u5237\u65B0\u5373\u53EF\u770B\u5230\u3002" : "\u65E5\u5FD7\u5DF2\u5173\u95ED\uFF0C\u4E0D\u8BB0\u5F55\u4EFB\u4F55\u8F93\u51FA\u3002";
+    empty.textContent = entries.length ? "\u8FD9\u4E2A\u7B5B\u9009\u4E0B\u6CA1\u6709\u8BB0\u5F55\u3002" : state.logEnabled ? "\u6682\u65E0\u65E5\u5FD7\u3002\u6267\u884C\u4E00\u6B21\u4FDD\u5B58\u6216\u5237\u65B0\u5373\u53EF\u770B\u5230\u3002" : "\u65E5\u5FD7\u5DF2\u5173\u95ED\uFF0C\u4E0D\u8BB0\u5F55\u4EFB\u4F55\u8F93\u51FA\u3002";
     box.append(empty);
     return;
   }
   const fragment = document.createDocumentFragment();
   for (const entry of [...visible].reverse()) {
     const line = document.createElement("div");
-    line.className = "log-line";
+    line.className = "log";
+    const top = document.createElement("div");
+    top.className = "log__top";
     const time = document.createElement("span");
-    time.className = "log-time";
+    time.className = "log__time";
     time.textContent = entry.time.toLocaleTimeString("zh-CN", { hour12: false });
-    const badge = document.createElement("span");
-    badge.className = `log-badge ${entry.kind}`;
-    badge.textContent = entry.kind === "ok" ? "OK" : entry.kind === "err" ? "\u9519\u8BEF" : entry.kind === "warn" ? "\u8B66\u544A" : "\u4FE1\u606F";
-    const text = document.createElement("span");
-    text.className = "log-text";
+    const tag = document.createElement("span");
+    tag.className = `tag ${entry.kind}`;
+    tag.textContent = entry.kind === "ok" ? "OK" : entry.kind === "err" ? "\u9519\u8BEF" : entry.kind === "warn" ? "\u8B66\u544A" : "\u4FE1\u606F";
+    top.append(time, tag);
+    const text = document.createElement("p");
+    text.className = "log__text";
     text.textContent = entry.text;
-    line.append(time, badge, text);
+    line.append(top, text);
     fragment.append(line);
   }
   box.append(fragment);
@@ -331,7 +519,7 @@ function renderLogs() {
 function readStorage(key, fallback) {
   try {
     let value = localStorage.getItem(key);
-    const legacyKey = { "app-systemizer-theme": "sap-theme", "app-systemizer-log-enabled": "sap-log-enabled" }[key];
+    const legacyKey = { "app-systemizer-log-enabled": "sap-log-enabled" }[key];
     if (value == null && legacyKey) {
       value = localStorage.getItem(legacyKey);
       if (value != null) {
@@ -350,48 +538,17 @@ function writeStorage(key, value) {
   } catch (_) {
   }
 }
-function applyTheme() {
-  document.documentElement.dataset.theme = state.theme;
-  applySystemColors();
-  document.querySelectorAll("[data-theme-option]").forEach((button) => {
-    const active = button.dataset.themeOption === state.theme;
-    button.setAttribute("aria-checked", String(active));
-    button.tabIndex = active ? 0 : -1;
-  });
-}
-function initThemePicker() {
-  const options = [...document.querySelectorAll("[data-theme-option]")];
-  const select = (option, { focus = false } = {}) => {
-    state.theme = option.dataset.themeOption;
-    writeStorage(`${module_info_default.id}-theme`, state.theme);
-    applyTheme();
-    if (focus) option.focus({ preventScroll: true });
-    log("info", `UI \u98CE\u683C\u5207\u6362\u4E3A ${state.theme === "md3" ? "Material 3" : "Miuix"}`);
-  };
-  for (const option of options) {
-    option.addEventListener("click", () => select(option));
-  }
-  $("#theme-options").addEventListener("keydown", (event) => {
-    const current = options.indexOf(document.activeElement);
-    if (current === -1) return;
-    const last = options.length - 1;
-    let next;
-    if (event.key === "ArrowRight" || event.key === "ArrowDown") next = current === last ? 0 : current + 1;
-    else if (event.key === "ArrowLeft" || event.key === "ArrowUp") next = current === 0 ? last : current - 1;
-    else if (event.key === "Home") next = 0;
-    else if (event.key === "End") next = last;
-    else return;
-    event.preventDefault();
-    select(options[next], { focus: true });
-  });
+function syncLogTab() {
+  const tab = document.querySelector('.nav-tab[data-tab="logs"]');
+  if (!tab) return;
+  tab.hidden = !state.logEnabled;
+  if (!state.logEnabled && activeTab() === "logs") switchTab("apps");
 }
 function initSettings() {
-  const savedTheme = readStorage(`${module_info_default.id}-theme`, "md3");
-  state.theme = savedTheme === "miuix" ? "miuix" : "md3";
   state.logEnabled = readStorage(`${module_info_default.id}-log-enabled`, "0") === "1";
-  applyTheme();
   const logSwitch = $("#log-enabled");
   logSwitch.checked = state.logEnabled;
+  syncLogTab();
   logSwitch.addEventListener("change", () => {
     if (logSwitch.checked) {
       state.logEnabled = true;
@@ -402,17 +559,107 @@ function initSettings() {
       state.logEnabled = false;
       writeStorage(`${module_info_default.id}-log-enabled`, "0");
     }
+    syncLogTab();
     renderLogs();
+  });
+}
+var currentSeed = null;
+var pendingSeed = null;
+var themeCommitting = false;
+function paintThemeRow() {
+  $("#theme-value").textContent = currentSeed ? currentSeed.toUpperCase() : "\u8DDF\u968F\u7CFB\u7EDF";
+}
+function syncSwatches() {
+  for (const button of document.querySelectorAll("[data-preset]")) {
+    button.setAttribute("aria-pressed", String(pendingSeed === button.dataset.preset));
+  }
+}
+function previewSeed(seed) {
+  pendingSeed = seed;
+  applyTheme(seed);
+  syncSwatches();
+  $("#theme-apply").disabled = !seed;
+}
+function openTheme() {
+  pendingSeed = currentSeed;
+  $("#theme-hex").value = currentSeed ? currentSeed.slice(1).toUpperCase() : "";
+  previewSeed(currentSeed);
+  $("#theme-dialog").showModal();
+}
+function initThemeSheet() {
+  currentSeed = initTheme(THEME_KEY);
+  paintThemeRow();
+  const swatches = $("#theme-swatches");
+  for (const preset of PRESETS) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "color";
+    button.dataset.preset = preset.color;
+    button.style.setProperty("--c", preset.color);
+    button.setAttribute("aria-label", preset.name);
+    button.setAttribute("aria-pressed", "false");
+    button.innerHTML = '<svg viewBox="0 0 24 24"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
+    button.addEventListener("click", () => {
+      $("#theme-hex").value = preset.color.slice(1).toUpperCase();
+      previewSeed(preset.color);
+    });
+    swatches.append(button);
+  }
+  const input = $("#theme-hex");
+  input.addEventListener("input", () => {
+    const raw = input.value.replace(/[^0-9a-fA-F]/g, "").slice(0, 6).toUpperCase();
+    if (raw !== input.value) input.value = raw;
+    const hex = raw.length === 6 ? normalizeHex(raw) : null;
+    if (hex) {
+      previewSeed(hex);
+    } else {
+      pendingSeed = null;
+      applyTheme(currentSeed);
+      syncSwatches();
+      $("#theme-apply").disabled = true;
+    }
+  });
+  $("#theme-clear").addEventListener("click", () => {
+    input.value = "";
+    input.focus();
+    pendingSeed = null;
+    applyTheme(currentSeed);
+    syncSwatches();
+    $("#theme-apply").disabled = true;
+  });
+  $("#theme-row").addEventListener("click", openTheme);
+  $("#theme-close").addEventListener("click", () => $("#theme-dialog").close());
+  $("#theme-apply").addEventListener("click", () => {
+    if (!pendingSeed) return;
+    themeCommitting = true;
+    currentSeed = pendingSeed;
+    storeTheme(THEME_KEY, currentSeed);
+    $("#theme-dialog").close();
+  });
+  $("#theme-system").addEventListener("click", () => {
+    themeCommitting = true;
+    currentSeed = null;
+    pendingSeed = null;
+    storeTheme(THEME_KEY, null);
+    applyTheme(null);
+    $("#theme-dialog").close();
+  });
+  $("#theme-dialog").addEventListener("close", () => {
+    if (!themeCommitting) applyTheme(currentSeed);
+    themeCommitting = false;
+    pendingSeed = currentSeed;
+    paintThemeRow();
+  });
+  $("#theme-dialog").addEventListener("click", (event) => {
+    if (event.target === $("#theme-dialog")) $("#theme-dialog").close();
   });
 }
 var TAB_TITLES = { apps: "\u7CFB\u7EDF\u5E94\u7528\u8F6C\u6362", logs: "\u8FD0\u884C\u65E5\u5FD7", settings: "\u8BBE\u7F6E" };
 function switchTab(name) {
-  closeTargetMenu();
   document.body.dataset.tab = name;
   $(".top-bar__title").textContent = TAB_TITLES[name] || TAB_TITLES.apps;
   document.querySelectorAll(".nav-tab").forEach((button) => {
     const active = button.dataset.tab === name;
-    button.classList.toggle("active", active);
     if (active) button.setAttribute("aria-current", "page");
     else button.removeAttribute("aria-current");
   });
@@ -508,7 +755,7 @@ function initPullGesture() {
     allowDown = false;
     allowUp = false;
     if (busy || event.touches.length !== 1) return;
-    if (event.target.closest(".target-select, dialog, button, input, .bottom-nav")) return;
+    if (event.target.closest("dialog, button, input, .bottom-nav")) return;
     const touch = event.touches[0];
     startX = touch.clientX;
     startY = touch.clientY;
@@ -604,59 +851,36 @@ function selectionLines() {
 function targetLabel(target) {
   return target === "priv-app" ? "/system/priv-app" : "/system/app";
 }
-function closeTargetMenu({ restoreFocus = false } = {}) {
-  $("#target-menu").hidden = true;
-  $("#target-default").setAttribute("aria-expanded", "false");
-  if (restoreFocus) $("#target-default").focus();
-}
-function initTargetMenu() {
-  const trigger = $("#target-default");
-  const menu = $("#target-menu");
-  const options = [...menu.querySelectorAll('[role="option"]')];
-  const open = (index = options.findIndex((option) => option.dataset.value === state.defaultTarget)) => {
-    menu.hidden = false;
-    trigger.setAttribute("aria-expanded", "true");
-    options[index].focus({ preventScroll: true });
+function initTargetSegments() {
+  const group = $("#target-options");
+  const options = [...group.querySelectorAll("[data-target-option]")];
+  const select = (option, { focus = false } = {}) => {
+    const next = option.dataset.targetOption;
+    const changed = state.defaultTarget !== next;
+    state.defaultTarget = next;
+    for (const item of options) {
+      const active = item === option;
+      item.setAttribute("aria-checked", String(active));
+      item.tabIndex = active ? 0 : -1;
+    }
+    if (focus) option.focus({ preventScroll: true });
+    if (changed) log("info", `\u76EE\u6807\u76EE\u5F55\u5207\u6362\u4E3A ${targetLabel(state.defaultTarget)}`);
   };
-  trigger.addEventListener("click", () => menu.hidden ? open() : closeTargetMenu());
-  trigger.addEventListener("keydown", (event) => {
-    if (["ArrowDown", "ArrowUp"].includes(event.key)) {
-      event.preventDefault();
-      open(event.key === "ArrowUp" ? options.length - 1 : void 0);
-    }
-  });
   for (const option of options) {
-    option.addEventListener("click", () => {
-      state.defaultTarget = option.dataset.value;
-      $("#target-value").textContent = targetLabel(state.defaultTarget);
-      for (const item of options) item.setAttribute("aria-selected", String(item === option));
-      closeTargetMenu({ restoreFocus: true });
-    });
+    option.addEventListener("click", () => select(option));
   }
-  menu.addEventListener("keydown", (event) => {
-    const index = options.indexOf(document.activeElement);
-    const next = {
-      ArrowDown: (index + 1) % options.length,
-      ArrowUp: (index - 1 + options.length) % options.length,
-      Home: 0,
-      End: options.length - 1
-    }[event.key];
-    if (next !== void 0) {
-      event.preventDefault();
-      options[next].focus({ preventScroll: true });
-    }
-  });
-  document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && !menu.hidden) {
-      event.preventDefault();
-      closeTargetMenu({ restoreFocus: true });
-    }
-  });
-  document.addEventListener("pointerdown", (event) => {
-    if (!event.target.closest(".target-select")) closeTargetMenu();
-  });
-  document.addEventListener("focusin", (event) => {
-    if (!event.target.closest(".target-select")) closeTargetMenu();
+  group.addEventListener("keydown", (event) => {
+    const current = options.indexOf(document.activeElement);
+    if (current === -1) return;
+    const last = options.length - 1;
+    let next;
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") next = current === last ? 0 : current + 1;
+    else if (event.key === "ArrowLeft" || event.key === "ArrowUp") next = current === 0 ? last : current - 1;
+    else if (event.key === "Home") next = 0;
+    else if (event.key === "End") next = last;
+    else return;
+    event.preventDefault();
+    select(options[next], { focus: true });
   });
 }
 function hasUnsavedChanges() {
@@ -670,24 +894,28 @@ function refreshSummary() {
   if (!size) {
     summary.textContent = "\u672A\u9009\u62E9\u5E94\u7528";
   } else if (changed) {
-    summary.textContent = `\u5DF2\u9009 ${size} \u4E2A\u5E94\u7528\uFF0C\u4FEE\u6539\u5C1A\u672A\u4FDD\u5B58`;
+    summary.textContent = `\u5DF2\u9009 ${size} \u4E2A \xB7 \u4FEE\u6539\u672A\u4FDD\u5B58`;
   } else if (state.pendingReboot) {
-    summary.textContent = `\u5DF2\u9009 ${size} \u4E2A\u5E94\u7528\uFF0C\u5DF2\u4FDD\u5B58\uFF0C\u91CD\u542F\u540E\u751F\u6548`;
+    summary.textContent = `\u5DF2\u9009 ${size} \u4E2A \xB7 \u7B49\u5F85\u91CD\u542F`;
   } else {
-    summary.textContent = `\u5DF2\u9009 ${size} \u4E2A\u5E94\u7528\uFF0C\u914D\u7F6E\u5DF2\u751F\u6548`;
+    summary.textContent = `\u5DF2\u9009 ${size} \u4E2A \xB7 \u5DF2\u751F\u6548`;
   }
+  summary.dataset.state = changed ? "dirty" : "clean";
+  save.hidden = !changed;
   save.disabled = !changed;
+  $("#save-label").textContent = size ? `\u4FDD\u5B58 ${size} \u9879` : "\u4FDD\u5B58\u66F4\u6539";
   const clearButton = $("#clear-selection");
   if (clearButton) clearButton.disabled = size === 0;
 }
 async function updateMountStatus() {
   const card = $("#status-card");
-  const label = $("#status-label");
-  const element = $("#mount-status");
-  const setState = (stateName, title, summary) => {
+  const setState = (stateName, title, chip, apps, hero, summary) => {
     if (card) card.dataset.state = stateName;
-    if (label) label.textContent = title;
-    if (element) element.textContent = summary;
+    $("#status-label").textContent = title;
+    $("#status-chip").textContent = chip;
+    $("#status-apps").textContent = String(apps);
+    $("#status-hero").textContent = hero;
+    $("#mount-status").textContent = summary;
   };
   try {
     const result = await exec(`${CONTROL} status`);
@@ -699,26 +927,30 @@ async function updateMountStatus() {
     const apks = Number((output.match(/STAGED_APKS=(\d+)/) || [, 0])[1]);
     const pending = /PENDING_REBOOT=1/.test(output);
     state.pendingReboot = pending;
-    const stagedText = `${apps} \u4E2A\u5E94\u7528\uFF08${apks} \u4E2A APK \u6587\u4EF6\uFF09`;
+    const metamodule = $("#info-metamodule");
+    if (metamodule) metamodule.textContent = metamoduleId || (metamoduleActive ? "Magic Mount-rs" : "\u672A\u68C0\u6D4B\u5230");
     if (!metamoduleActive) {
-      setState("err", "\u672A\u68C0\u6D4B\u5230\u6302\u8F7D\u5143\u6A21\u5757", "\u8BF7\u5148\u5B89\u88C5\u5E76\u542F\u7528 Magic Mount-rs\uFF0C\u5426\u5219\u91CD\u542F\u540E\u4E0D\u4F1A\u6210\u4E3A\u7CFB\u7EDF\u5E94\u7528\u3002");
+      setState("err", "\u672A\u68C0\u6D4B\u5230\u6302\u8F7D\u5143\u6A21\u5757", "\u9700\u914D\u7F6E", 0, "\u4E2A\u5E94\u7528\u5DF2\u6258\u7BA1", "\u8BF7\u5148\u5B89\u88C5\u5E76\u542F\u7528 Magic Mount-rs");
     } else if (pending) {
-      setState("pending", "\u914D\u7F6E\u5DF2\u4FDD\u5B58\uFF0C\u7B49\u5F85\u91CD\u542F", `\u5DF2\u4FDD\u5B58 ${stagedText} \u7684\u65B0\u914D\u7F6E\uFF0C\u91CD\u542F\u540E\u624D\u4F1A\u6302\u8F7D\u751F\u6548\u3002`);
+      setState("pending", "\u914D\u7F6E\u5DF2\u4FDD\u5B58\uFF0C\u7B49\u5F85\u91CD\u542F", "\u5F85\u91CD\u542F", apps, "\u4E2A\u5E94\u7528\u5F85\u751F\u6548", `\u5DF2\u6682\u5B58 ${apks} \u4E2A APK \u6587\u4EF6`);
     } else if (!apps) {
-      setState("ok", "\u5F53\u524D\u6CA1\u6709\u914D\u7F6E\u4EFB\u4F55\u5E94\u7528", "\u52FE\u9009\u5E94\u7528\u5E76\u4FDD\u5B58\uFF0C\u91CD\u542F\u540E\u5373\u53EF\u6210\u4E3A\u7CFB\u7EDF\u5E94\u7528\u3002");
+      setState("ok", "\u5F53\u524D\u6CA1\u6709\u914D\u7F6E\u4EFB\u4F55\u5E94\u7528", "\u7A7A", 0, "\u4E2A\u5E94\u7528\u5DF2\u6258\u7BA1", "\u52FE\u9009\u5E94\u7528\u5E76\u4FDD\u5B58\uFF0C\u91CD\u542F\u540E\u751F\u6548");
     } else if (!systemMountActive) {
       const other = metamoduleId && !/magic/i.test(metamoduleId);
       setState(
         "warn",
-        other ? `\u5F53\u524D\u5143\u6A21\u5757\u4E3A ${metamoduleId}` : "\u5DF2\u542F\u7528 Magic Mount-rs",
-        other ? `\u672A\u68C0\u6D4B\u5230\u7ED1\u5B9A\u6302\u8F7D\uFF1B\u5DF2\u6682\u5B58 ${stagedText}\uFF0C\u5EFA\u8BAE\u6539\u7528 Magic Mount-rs \u540E\u91CD\u542F\u3002` : `\u5DF2\u6682\u5B58 ${stagedText}\uFF0C\u4F46\u672A\u68C0\u6D4B\u5230\u6302\u8F7D\uFF0C\u8BF7\u91CD\u542F\u540E\u67E5\u770B\u3002`
+        other ? "\u5143\u6A21\u5757\u4E0D\u652F\u6301\u7ED1\u5B9A\u6302\u8F7D" : "\u5DF2\u542F\u7528 Magic Mount-rs",
+        other ? "\u672A\u6302\u8F7D" : "\u5F85\u6302\u8F7D",
+        apps,
+        "\u4E2A\u5E94\u7528\u5F85\u6302\u8F7D",
+        `\u5DF2\u6682\u5B58 ${apks} \u4E2A APK \u6587\u4EF6`
       );
     } else {
-      setState("ok", "\u6302\u8F7D\u5DF2\u751F\u6548", `\u5F53\u524D\u5DF2\u6302\u8F7D ${stagedText}\u3002`);
+      setState("ok", "\u6302\u8F7D\u5DF2\u751F\u6548", "\u5DF2\u751F\u6548", apps, "\u4E2A\u5E94\u7528\u5DF2\u6258\u7BA1", `\u5171 ${apks} \u4E2A APK \u6587\u4EF6 \xB7 \u5F00\u673A\u81EA\u52A8\u6302\u8F7D`);
     }
     log(result.errno === 0 ? "ok" : "warn", `\u6302\u8F7D\u68C0\u67E5\uFF1A${output.trim() || "(\u7A7A\u8F93\u51FA)"}`);
   } catch (error) {
-    setState("err", "\u65E0\u6CD5\u8BFB\u53D6\u6302\u8F7D\u72B6\u6001", "\u8BF7\u786E\u8BA4\u4ECE KernelSU Manager \u5185\u6253\u5F00\u672C\u9875\u9762\u3002");
+    setState("err", "\u65E0\u6CD5\u8BFB\u53D6\u6302\u8F7D\u72B6\u6001", "\u9519\u8BEF", 0, "\u4E2A\u5E94\u7528\u5DF2\u6258\u7BA1", "\u8BF7\u4ECE KernelSU \u7BA1\u7406\u5668\u5185\u6253\u5F00\u6B64\u9875\u9762");
     log("err", `\u6302\u8F7D\u68C0\u67E5\u5931\u8D25\uFF1A${error.message || error}`);
   }
   refreshSummary();
@@ -729,7 +961,8 @@ function visibleApps() {
 }
 function render() {
   const apps = visibleApps();
-  count.textContent = `\u663E\u793A ${apps.length} / ${state.apps.length} \u4E2A\u5E94\u7528`;
+  count.textContent = String(apps.length);
+  count.title = `\u663E\u793A ${apps.length} / ${state.apps.length} \u4E2A\u5E94\u7528`;
   list.replaceChildren();
   if (!apps.length) {
     list.innerHTML = '<p class="empty">\u6CA1\u6709\u5339\u914D\u7684\u5E94\u7528</p>';
@@ -740,7 +973,7 @@ function render() {
     const selectedTarget = state.selected.get(app.packageName);
     const locked = app.isSystem && !state.saved.has(app.packageName);
     const row = document.createElement("div");
-    row.className = `app ${selectedTarget ? "selected" : ""}`;
+    row.className = `row${selectedTarget ? " is-selected" : ""}${locked ? " is-locked" : ""}`;
     row.setAttribute("role", "checkbox");
     row.setAttribute("aria-checked", String(Boolean(selectedTarget)));
     if (locked) row.setAttribute("aria-disabled", "true");
@@ -763,38 +996,33 @@ function render() {
         toggle();
       }
     });
-    const check = document.createElement("span");
-    check.className = "checkbox";
-    check.setAttribute("aria-hidden", "true");
-    check.dataset.checked = selectedTarget ? "true" : "false";
     const icon = document.createElement("img");
-    icon.className = "app-icon";
+    icon.className = "row__icon";
     icon.alt = "";
     icon.src = `ksu://icon/${app.packageName}`;
     icon.onerror = () => {
       icon.style.visibility = "hidden";
     };
-    const info = document.createElement("div");
-    info.className = "app-info";
-    const name = document.createElement("div");
-    name.className = "app-name";
+    const text = document.createElement("div");
+    text.className = "row__text";
+    const name = document.createElement("span");
+    name.className = "row__title";
     name.textContent = app.appLabel || app.packageName;
-    const pkg = document.createElement("div");
-    pkg.className = "package";
-    pkg.textContent = app.packageName;
-    info.append(name, pkg);
-    row.append(check, icon, info);
-    if (selectedTarget) {
-      const side = document.createElement("div");
-      side.className = "side-badge target";
-      side.textContent = `\u672C\u6A21\u5757\u7BA1\u7406 \xB7 ${targetLabel(selectedTarget)}`;
-      info.append(side);
-    } else if (app.isSystem) {
-      const side = document.createElement("div");
-      side.className = "side-badge badge";
-      side.textContent = "\u5DF2\u662F\u7CFB\u7EDF\u5E94\u7528";
-      info.append(side);
+    if (locked) {
+      const tag = document.createElement("span");
+      tag.className = "row__tag";
+      tag.textContent = "\u5DF2\u662F\u7CFB\u7EDF\u5E94\u7528";
+      name.append(tag);
     }
+    const pkg = document.createElement("span");
+    pkg.className = "row__sub";
+    pkg.textContent = selectedTarget ? `${app.packageName} \xB7 ${targetLabel(selectedTarget)}` : app.packageName;
+    text.append(name, pkg);
+    const check = document.createElement("span");
+    check.className = `checkbox${selectedTarget ? " is-on" : ""}`;
+    check.setAttribute("aria-hidden", "true");
+    check.innerHTML = '<svg viewBox="0 0 24 24"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
+    row.append(icon, text, check);
     fragment.append(row);
   }
   list.append(fragment);
@@ -860,6 +1088,12 @@ $("#select-visible").addEventListener("click", () => {
 });
 document.querySelectorAll(".nav-tab").forEach((button) => {
   button.addEventListener("click", () => switchTab(button.dataset.tab));
+});
+document.querySelectorAll("[data-log-filter]").forEach((button) => {
+  button.addEventListener("click", () => {
+    state.logFilter = button.dataset.logFilter;
+    renderLogs();
+  });
 });
 $("#log-clear").addEventListener("click", () => {
   state.logs = [];
@@ -955,10 +1189,10 @@ wireModalDismiss($("#reboot-dialog"));
 wireModalDismiss($("#confirm-dialog"));
 $("#info-version").textContent = module_info_default.version;
 $("#info-data-dir").textContent = `/data/adb/${module_info_default.id}`;
+initThemeSheet();
 initSettings();
-initThemePicker();
 initSystemColors();
-initTargetMenu();
+initTargetSegments();
 renderLogs();
 initTopBar();
 initPullGesture();

@@ -80,8 +80,8 @@ function getPackagesInfo(packages) {
 var module_info_default = {
   id: "app-systemizer",
   name: "App Systemizer",
-  version: "1.5.1",
-  versionCode: 1005001
+  version: "1.6.0",
+  versionCode: 1006e3
 };
 
 // module/webroot/system-colors.js
@@ -309,6 +309,15 @@ var ROLES = [
 ];
 var scheme;
 var activeSeed = null;
+var forcedMode = "system";
+function isDark() {
+  if (forcedMode === "dark") return true;
+  if (forcedMode === "light") return false;
+  return Boolean(scheme && scheme.matches);
+}
+function setForcedMode(mode) {
+  forcedMode = mode === "light" || mode === "dark" ? mode : "system";
+}
 function normalizeHex(value) {
   const match = /^#?([0-9a-f]{6})$/i.exec(String(value == null ? "" : value).trim());
   return match ? `#${match[1].toLowerCase()}` : null;
@@ -415,8 +424,7 @@ function applyTheme(seed) {
     delete root.dataset.customTheme;
     return;
   }
-  const dark = Boolean(scheme && scheme.matches);
-  const palette = paletteFor(seed, dark);
+  const palette = paletteFor(seed, isDark());
   for (const role of ROLES) root.style.setProperty(`--md-${role}`, palette[role]);
   root.dataset.customTheme = seed;
 }
@@ -447,12 +455,15 @@ function initTheme(storageKey) {
 // module/webroot/app.js
 var CONTROL = `/data/adb/modules/${module_info_default.id}/scripts/app-systemizer.sh`;
 var THEME_KEY = `${module_info_default.id}-theme`;
+var THEME_MODE_KEY = `${module_info_default.id}-theme-mode`;
+var MODE_LABELS = { system: "\u8DDF\u968F\u7CFB\u7EDF", light: "\u4EAE\u8272", dark: "\u6697\u8272" };
 var state = {
   apps: [],
   selected: /* @__PURE__ */ new Map(),
   saved: /* @__PURE__ */ new Map(),
   filter: "",
   logFilter: "all",
+  themeMode: "system",
   logs: [],
   logEnabled: false,
   pendingReboot: false,
@@ -567,7 +578,22 @@ var currentSeed = null;
 var pendingSeed = null;
 var themeCommitting = false;
 function paintThemeRow() {
-  $("#theme-value").textContent = currentSeed ? currentSeed.toUpperCase() : "\u8DDF\u968F\u7CFB\u7EDF";
+  $("#theme-value").textContent = currentSeed ? currentSeed.toUpperCase() : "\u7CFB\u7EDF\u53D6\u8272";
+}
+function setThemeMode(mode, { persist = true } = {}) {
+  const next = MODE_LABELS[mode] ? mode : "system";
+  state.themeMode = next;
+  const root = document.documentElement;
+  if (next === "system") delete root.dataset.theme;
+  else root.dataset.theme = next;
+  setForcedMode(next);
+  if (persist) writeStorage(THEME_MODE_KEY, next);
+  const label = $("#theme-mode-value");
+  if (label) label.textContent = MODE_LABELS[next];
+  for (const item of document.querySelectorAll("[data-mode]")) {
+    item.setAttribute("aria-selected", String(item.dataset.mode === next));
+  }
+  if (currentSeed) applyTheme(currentSeed);
 }
 function syncSwatches() {
   for (const button of document.querySelectorAll("[data-preset]")) {
@@ -587,6 +613,7 @@ function openTheme() {
   $("#theme-dialog").showModal();
 }
 function initThemeSheet() {
+  setThemeMode(readStorage(THEME_MODE_KEY, "system"), { persist: false });
   currentSeed = initTheme(THEME_KEY);
   paintThemeRow();
   const swatches = $("#theme-swatches");
@@ -652,6 +679,53 @@ function initThemeSheet() {
   });
   $("#theme-dialog").addEventListener("click", (event) => {
     if (event.target === $("#theme-dialog")) $("#theme-dialog").close();
+  });
+  const modeTrigger = $("#theme-mode-row");
+  const modeMenu = $("#theme-mode-menu");
+  const modeOptions = [...modeMenu.querySelectorAll("[data-mode]")];
+  const closeModeMenu = ({ refocus = false } = {}) => {
+    if (modeMenu.hidden) return;
+    modeMenu.hidden = true;
+    modeTrigger.setAttribute("aria-expanded", "false");
+    if (refocus) modeTrigger.focus({ preventScroll: true });
+  };
+  modeTrigger.addEventListener("click", () => {
+    if (!modeMenu.hidden) {
+      closeModeMenu();
+      return;
+    }
+    modeMenu.hidden = false;
+    modeTrigger.setAttribute("aria-expanded", "true");
+    const current = modeOptions.find((item) => item.dataset.mode === state.themeMode) || modeOptions[0];
+    current.focus({ preventScroll: true });
+  });
+  for (const option of modeOptions) {
+    option.addEventListener("click", () => {
+      setThemeMode(option.dataset.mode);
+      closeModeMenu({ refocus: true });
+    });
+  }
+  modeMenu.addEventListener("keydown", (event) => {
+    const index = modeOptions.indexOf(document.activeElement);
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      const step = event.key === "ArrowDown" ? 1 : -1;
+      modeOptions[(index + step + modeOptions.length) % modeOptions.length].focus({ preventScroll: true });
+    } else if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      if (index >= 0) modeOptions[index].click();
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      closeModeMenu({ refocus: true });
+    }
+  });
+  document.addEventListener("click", (event) => {
+    if (modeMenu.hidden) return;
+    if (event.target.closest("#theme-mode-row, #theme-mode-menu")) return;
+    closeModeMenu();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeModeMenu();
   });
 }
 var TAB_TITLES = { apps: "\u7CFB\u7EDF\u5E94\u7528\u8F6C\u6362", logs: "\u8FD0\u884C\u65E5\u5FD7", settings: "\u8BBE\u7F6E" };
@@ -851,36 +925,59 @@ function selectionLines() {
 function targetLabel(target) {
   return target === "priv-app" ? "/system/priv-app" : "/system/app";
 }
-function initTargetSegments() {
-  const group = $("#target-options");
-  const options = [...group.querySelectorAll("[data-target-option]")];
-  const select = (option, { focus = false } = {}) => {
+function initTargetSelect() {
+  const trigger = $("#target-select");
+  const menu = $("#target-menu");
+  const value = $("#target-value");
+  const options = [...menu.querySelectorAll("[data-target-option]")];
+  const close = ({ refocus = false } = {}) => {
+    if (menu.hidden) return;
+    menu.hidden = true;
+    trigger.setAttribute("aria-expanded", "false");
+    if (refocus) trigger.focus({ preventScroll: true });
+  };
+  const open = () => {
+    menu.hidden = false;
+    trigger.setAttribute("aria-expanded", "true");
+    const current = options.find((item) => item.dataset.targetOption === state.defaultTarget) || options[0];
+    current.focus({ preventScroll: true });
+  };
+  const choose = (option) => {
     const next = option.dataset.targetOption;
     const changed = state.defaultTarget !== next;
     state.defaultTarget = next;
+    value.textContent = targetLabel(next);
     for (const item of options) {
-      const active = item === option;
-      item.setAttribute("aria-checked", String(active));
-      item.tabIndex = active ? 0 : -1;
+      item.setAttribute("aria-selected", String(item === option));
     }
-    if (focus) option.focus({ preventScroll: true });
-    if (changed) log("info", `\u76EE\u6807\u76EE\u5F55\u5207\u6362\u4E3A ${targetLabel(state.defaultTarget)}`);
+    close({ refocus: true });
+    if (changed) log("info", `\u76EE\u6807\u76EE\u5F55\u5207\u6362\u4E3A ${targetLabel(next)}`);
   };
+  trigger.addEventListener("click", () => menu.hidden ? open() : close());
   for (const option of options) {
-    option.addEventListener("click", () => select(option));
+    option.addEventListener("click", () => choose(option));
   }
-  group.addEventListener("keydown", (event) => {
-    const current = options.indexOf(document.activeElement);
-    if (current === -1) return;
-    const last = options.length - 1;
-    let next;
-    if (event.key === "ArrowRight" || event.key === "ArrowDown") next = current === last ? 0 : current + 1;
-    else if (event.key === "ArrowLeft" || event.key === "ArrowUp") next = current === 0 ? last : current - 1;
-    else if (event.key === "Home") next = 0;
-    else if (event.key === "End") next = last;
-    else return;
-    event.preventDefault();
-    select(options[next], { focus: true });
+  menu.addEventListener("keydown", (event) => {
+    const index = options.indexOf(document.activeElement);
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      const step = event.key === "ArrowDown" ? 1 : -1;
+      options[(index + step + options.length) % options.length].focus({ preventScroll: true });
+    } else if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      if (index >= 0) choose(options[index]);
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      close({ refocus: true });
+    }
+  });
+  document.addEventListener("click", (event) => {
+    if (menu.hidden) return;
+    if (event.target.closest("#target-select, #target-menu")) return;
+    close();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") close({ refocus: true });
   });
 }
 function hasUnsavedChanges() {
@@ -1192,7 +1289,7 @@ $("#info-data-dir").textContent = `/data/adb/${module_info_default.id}`;
 initThemeSheet();
 initSettings();
 initSystemColors();
-initTargetSegments();
+initTargetSelect();
 renderLogs();
 initTopBar();
 initPullGesture();

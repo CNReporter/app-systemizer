@@ -1,16 +1,19 @@
 import { exec, getPackagesInfo, listPackages, toast } from 'kernelsu';
 import appSystemizer from './module-info.json';
 import { initSystemColors } from './system-colors.js';
-import { initTheme, applyTheme, normalizeHex, storeTheme, PRESETS } from './theme.js';
+import { initTheme, applyTheme, normalizeHex, storeTheme, setForcedMode, PRESETS } from './theme.js';
 
 const CONTROL = `/data/adb/modules/${appSystemizer.id}/scripts/app-systemizer.sh`;
 const THEME_KEY = `${appSystemizer.id}-theme`;
+const THEME_MODE_KEY = `${appSystemizer.id}-theme-mode`;
+const MODE_LABELS = { system: '跟随系统', light: '亮色', dark: '暗色' };
 const state = {
   apps: [],
   selected: new Map(),
   saved: new Map(),
   filter: '',
   logFilter: 'all',
+  themeMode: 'system',
   logs: [],
   logEnabled: false,
   pendingReboot: false,
@@ -145,7 +148,24 @@ let pendingSeed = null;
 let themeCommitting = false;
 
 function paintThemeRow() {
-  $('#theme-value').textContent = currentSeed ? currentSeed.toUpperCase() : '跟随系统';
+  $('#theme-value').textContent = currentSeed ? currentSeed.toUpperCase() : '系统取色';
+}
+
+function setThemeMode(mode, { persist = true } = {}) {
+  const next = MODE_LABELS[mode] ? mode : 'system';
+  state.themeMode = next;
+  const root = document.documentElement;
+  if (next === 'system') delete root.dataset.theme;
+  else root.dataset.theme = next;
+  setForcedMode(next);
+  if (persist) writeStorage(THEME_MODE_KEY, next);
+  const label = $('#theme-mode-value');
+  if (label) label.textContent = MODE_LABELS[next];
+  for (const item of document.querySelectorAll('[data-mode]')) {
+    item.setAttribute('aria-selected', String(item.dataset.mode === next));
+  }
+  // 自定义色是按当前明暗派生出来的，切换模式后要重新算一遍。
+  if (currentSeed) applyTheme(currentSeed);
 }
 
 function syncSwatches() {
@@ -169,6 +189,8 @@ function openTheme() {
 }
 
 function initThemeSheet() {
+  // 先定明暗，再应用自定义色，派生出来的才是对应模式的调色板。
+  setThemeMode(readStorage(THEME_MODE_KEY, 'system'), { persist: false });
   currentSeed = initTheme(THEME_KEY);
   paintThemeRow();
 
@@ -243,6 +265,51 @@ function initThemeSheet() {
 
   $('#theme-dialog').addEventListener('click', (event) => {
     if (event.target === $('#theme-dialog')) $('#theme-dialog').close();
+  });
+
+  const modeTrigger = $('#theme-mode-row');
+  const modeMenu = $('#theme-mode-menu');
+  const modeOptions = [...modeMenu.querySelectorAll('[data-mode]')];
+  const closeModeMenu = ({ refocus = false } = {}) => {
+    if (modeMenu.hidden) return;
+    modeMenu.hidden = true;
+    modeTrigger.setAttribute('aria-expanded', 'false');
+    if (refocus) modeTrigger.focus({ preventScroll: true });
+  };
+  modeTrigger.addEventListener('click', () => {
+    if (!modeMenu.hidden) { closeModeMenu(); return; }
+    modeMenu.hidden = false;
+    modeTrigger.setAttribute('aria-expanded', 'true');
+    const current = modeOptions.find((item) => item.dataset.mode === state.themeMode) || modeOptions[0];
+    current.focus({ preventScroll: true });
+  });
+  for (const option of modeOptions) {
+    option.addEventListener('click', () => {
+      setThemeMode(option.dataset.mode);
+      closeModeMenu({ refocus: true });
+    });
+  }
+  modeMenu.addEventListener('keydown', (event) => {
+    const index = modeOptions.indexOf(document.activeElement);
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      const step = event.key === 'ArrowDown' ? 1 : -1;
+      modeOptions[(index + step + modeOptions.length) % modeOptions.length].focus({ preventScroll: true });
+    } else if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      if (index >= 0) modeOptions[index].click();
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      closeModeMenu({ refocus: true });
+    }
+  });
+  document.addEventListener('click', (event) => {
+    if (modeMenu.hidden) return;
+    if (event.target.closest('#theme-mode-row, #theme-mode-menu')) return;
+    closeModeMenu();
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeModeMenu();
   });
 }
 
@@ -465,40 +532,68 @@ function targetLabel(target) {
   return target === 'priv-app' ? '/system/priv-app' : '/system/app';
 }
 
-// 目标目录是一组互斥的分段按钮：点击或方向键选择都会更新默认目标，
-// 只影响此后新勾选的应用，已有选择保留各自的目标目录。
-function initTargetSegments() {
-  const group = $('#target-options');
-  const options = [...group.querySelectorAll('[data-target-option]')];
-  const select = (option, { focus = false } = {}) => {
+// 安装位置是一个下拉框：触发器只显示当前目录，展开后二选一。
+// 选择只影响此后新勾选的应用，已有选择保留各自的目标目录。
+function initTargetSelect() {
+  const trigger = $('#target-select');
+  const menu = $('#target-menu');
+  const value = $('#target-value');
+  const options = [...menu.querySelectorAll('[data-target-option]')];
+
+  const close = ({ refocus = false } = {}) => {
+    if (menu.hidden) return;
+    menu.hidden = true;
+    trigger.setAttribute('aria-expanded', 'false');
+    if (refocus) trigger.focus({ preventScroll: true });
+  };
+
+  const open = () => {
+    menu.hidden = false;
+    trigger.setAttribute('aria-expanded', 'true');
+    const current = options.find((item) => item.dataset.targetOption === state.defaultTarget) || options[0];
+    current.focus({ preventScroll: true });
+  };
+
+  const choose = (option) => {
     const next = option.dataset.targetOption;
     const changed = state.defaultTarget !== next;
     state.defaultTarget = next;
+    value.textContent = targetLabel(next);
     for (const item of options) {
-      const active = item === option;
-      item.setAttribute('aria-checked', String(active));
-      // Roving tabindex keeps the whole group to a single tab stop.
-      item.tabIndex = active ? 0 : -1;
+      item.setAttribute('aria-selected', String(item === option));
     }
-    if (focus) option.focus({ preventScroll: true });
-    if (changed) log('info', `目标目录切换为 ${targetLabel(state.defaultTarget)}`);
+    close({ refocus: true });
+    if (changed) log('info', `目标目录切换为 ${targetLabel(next)}`);
   };
+
+  trigger.addEventListener('click', () => (menu.hidden ? open() : close()));
   for (const option of options) {
-    option.addEventListener('click', () => select(option));
+    option.addEventListener('click', () => choose(option));
   }
-  group.addEventListener('keydown', (event) => {
-    const current = options.indexOf(document.activeElement);
-    if (current === -1) return;
-    const last = options.length - 1;
-    let next;
-    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') next = current === last ? 0 : current + 1;
-    else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') next = current === 0 ? last : current - 1;
-    else if (event.key === 'Home') next = 0;
-    else if (event.key === 'End') next = last;
-    else return;
-    event.preventDefault();
-    // A radio group moves the selection with focus, like a native radio set.
-    select(options[next], { focus: true });
+
+  menu.addEventListener('keydown', (event) => {
+    const index = options.indexOf(document.activeElement);
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      const step = event.key === 'ArrowDown' ? 1 : -1;
+      options[(index + step + options.length) % options.length].focus({ preventScroll: true });
+    } else if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      if (index >= 0) choose(options[index]);
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      close({ refocus: true });
+    }
+  });
+
+  document.addEventListener('click', (event) => {
+    if (menu.hidden) return;
+    if (event.target.closest('#target-select, #target-menu')) return;
+    close();
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') close({ refocus: true });
   });
 }
 
@@ -825,7 +920,7 @@ $('#info-data-dir').textContent = `/data/adb/${appSystemizer.id}`;
 initThemeSheet();
 initSettings();
 initSystemColors();
-initTargetSegments();
+initTargetSelect();
 renderLogs();
 initTopBar();
 initPullGesture();

@@ -23,6 +23,19 @@ const ROLES = [
 
 let scheme;
 let activeSeed = null;
+let forcedMode = 'system';
+
+/** 当前生效的明暗：手动模式优先，否则跟随系统。 */
+function isDark() {
+  if (forcedMode === 'dark') return true;
+  if (forcedMode === 'light') return false;
+  return Boolean(scheme && scheme.matches);
+}
+
+/** 'system' | 'light' | 'dark'，只影响后续派生出的调色板。 */
+export function setForcedMode(mode) {
+  forcedMode = mode === 'light' || mode === 'dark' ? mode : 'system';
+}
 
 /** 接受 "6750A4"、"#6750A4"、"#6750a4"，返回规范化的 "#6750a4"，否则 null。 */
 export function normalizeHex(value) {
@@ -134,8 +147,7 @@ export function applyTheme(seed) {
     delete root.dataset.customTheme;
     return;
   }
-  const dark = Boolean(scheme && scheme.matches);
-  const palette = paletteFor(seed, dark);
+  const palette = paletteFor(seed, isDark());
   for (const role of ROLES) root.style.setProperty(`--md-${role}`, palette[role]);
   root.dataset.customTheme = seed;
 }

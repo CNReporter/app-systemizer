@@ -43,15 +43,25 @@
             <input id="search" type="search" placeholder="搜索名称或包名" autocomplete="off" aria-label="搜索应用">
           </label>
 
-          <div id="target-options" class="segmented" role="radiogroup" aria-label="目标目录">
-            <button type="button" role="radio" aria-checked="true" data-target-option="app" tabindex="0">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-              <span>/system/app</span>
+          <div class="select-wrap">
+            <button id="target-select" class="select" type="button" aria-haspopup="listbox"
+              aria-expanded="false" aria-controls="target-menu">
+              <span class="select__text">
+                <span class="select__label">安装位置</span>
+                <span class="select__value" id="target-value">/system/app</span>
+              </span>
+              <svg class="select__chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m7.41 8.59 4.59 4.58 4.59-4.58L18 10l-6 6-6-6 1.41-1.41Z"/></svg>
             </button>
-            <button type="button" role="radio" aria-checked="false" data-target-option="priv-app" tabindex="-1">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4Z"/></svg>
-              <span>/system/priv-app</span>
-            </button>
+            <div class="menu" id="target-menu" role="listbox" aria-label="安装位置" hidden>
+              <button class="menu__item" type="button" role="option" data-target-option="app" aria-selected="true">
+                <span>/system/app</span>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+              </button>
+              <button class="menu__item" type="button" role="option" data-target-option="priv-app" aria-selected="false">
+                <span>/system/priv-app</span>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+              </button>
+            </div>
           </div>
 
           <div class="list-head">
@@ -124,14 +134,42 @@
           </section>
 
           <h2 class="group">外观</h2>
-          <section class="card">
+          <section class="card card--rows">
+            <div class="menu-wrap">
+              <button id="theme-mode-row" class="setting" type="button" aria-haspopup="listbox"
+                aria-expanded="false" aria-controls="theme-mode-menu">
+                <span class="setting__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 2v16a8 8 0 0 1 0-16Z"/></svg>
+                </span>
+                <span class="setting__text">
+                  <span class="setting__title">主题模式</span>
+                  <span class="setting__sub">亮色、暗色或跟随系统</span>
+                </span>
+                <span class="hex-value" id="theme-mode-value">跟随系统</span>
+                <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.29 6.71a1 1 0 0 0 0 1.41L13.17 12l-3.88 3.88a1 1 0 1 0 1.42 1.41l4.58-4.58a1 1 0 0 0 0-1.42L10.7 6.7a1 1 0 0 0-1.41 0Z"/></svg>
+              </button>
+              <div class="menu menu--inset" id="theme-mode-menu" role="listbox" aria-label="主题模式" hidden>
+                <button class="menu__item" type="button" role="option" data-mode="system" aria-selected="true">
+                  <span>跟随系统</span>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                </button>
+                <button class="menu__item" type="button" role="option" data-mode="light" aria-selected="false">
+                  <span>亮色</span>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                </button>
+                <button class="menu__item" type="button" role="option" data-mode="dark" aria-selected="false">
+                  <span>暗色</span>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                </button>
+              </div>
+            </div>
             <button id="theme-row" class="setting" type="button">
               <span class="swatch" id="theme-swatch" aria-hidden="true"></span>
               <span class="setting__text">
                 <span class="setting__title">主题色</span>
-                <span class="setting__sub">自定义主色，可以直接输入色号</span>
+                <span class="setting__sub">输入六位色号，或从预设中选一个</span>
               </span>
-              <span class="hex-value" id="theme-value">跟随系统</span>
+              <span class="hex-value" id="theme-value">系统取色</span>
               <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.29 6.71a1 1 0 0 0 0 1.41L13.17 12l-3.88 3.88a1 1 0 1 0 1.42 1.41l4.58-4.58a1 1 0 0 0 0-1.42L10.7 6.7a1 1 0 0 0-1.41 0Z"/></svg>
             </button>
           </section>

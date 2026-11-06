@@ -1,5 +1,15 @@
 # 更新日志
 
+## 1.5.1 · 走 KernelSU 原生更新
+
+### 变更
+
+- 更新提示改走 KernelSU 自己的机制：`module.prop` 增加 `updateJson`，指向 `releases/latest/download/update.json`；发版时生成并上传 `update.json`（version / versionCode / zipUrl / changelog），管理器会在模块卡片右下角、卸载按钮左边显示更新按钮。
+- 移除 1.5.0 在 WebUI 里自带的检查更新（`update.js`、设置页入口、更新弹窗和导航红点），避免两套逻辑同时存在。
+- README 同步更新。
+
+> 1.5.1 之前安装的版本 `module.prop` 里没有 `updateJson`，需要手动装一次 1.5.1，之后的版本才会在管理器里直接提示。
+
 ## 1.5.0 · 检查更新
 
 ### 新增

@@ -2,12 +2,9 @@ import { exec, getPackagesInfo, listPackages, toast } from 'kernelsu';
 import appSystemizer from './module-info.json';
 import { initSystemColors } from './system-colors.js';
 import { initTheme, applyTheme, normalizeHex, storeTheme, PRESETS } from './theme.js';
-import { fetchLatest, compareVersions, readCache, writeCache, formatDate } from './update.js';
 
 const CONTROL = `/data/adb/modules/${appSystemizer.id}/scripts/app-systemizer.sh`;
 const THEME_KEY = `${appSystemizer.id}-theme`;
-const UPDATE_KEY = `${appSystemizer.id}-update`;
-const UPDATE_TTL = 12 * 60 * 60 * 1000;
 const state = {
   apps: [],
   selected: new Map(),
@@ -247,103 +244,6 @@ function initThemeSheet() {
   $('#theme-dialog').addEventListener('click', (event) => {
     if (event.target === $('#theme-dialog')) $('#theme-dialog').close();
   });
-}
-
-/* --------------------------------------------------------------- 检查更新 */
-
-const updateState = { status: 'idle', latest: null, busy: false };
-
-function paintUpdateRow() {
-  const value = $('#update-value');
-  const nav = $('#nav-settings');
-  $('#update-sub').textContent = `当前版本 ${appSystemizer.version}`;
-  delete value.dataset.state;
-  const status = updateState.status;
-  nav.classList.toggle('has-update', status === 'available');
-  if (status === 'checking') value.textContent = '检查中…';
-  else if (status === 'available' && updateState.latest) {
-    value.textContent = `v${updateState.latest.version} 可用`;
-    value.dataset.state = 'available';
-  } else if (status === 'latest') value.textContent = '已是最新';
-  else if (status === 'error') {
-    value.textContent = '检查失败';
-    value.dataset.state = 'error';
-  } else value.textContent = '—';
-}
-
-function openUpdateDialog(latest) {
-  const meta = latest.publishedAt
-    ? `当前版本 ${appSystemizer.version} · 发布于 ${formatDate(latest.publishedAt)}`
-    : `当前版本 ${appSystemizer.version}`;
-  $('#update-title').textContent = `发现新版本 ${latest.version}`;
-  $('#update-meta').textContent = meta;
-  $('#update-notes').textContent = latest.notes
-    || '这个版本没有附更新说明，点「前往下载」查看完整的 Release 页面。';
-  openModal($('#update-dialog'));
-}
-
-function openExternal(url) {
-  try {
-    // 直接在 WebView 里跳转会把 WebUI 顶掉，交给系统浏览器更稳。
-    exec(`am start -a android.intent.action.VIEW -d "${String(url).replace(/"/g, '')}" >/dev/null 2>&1`);
-  } catch (_) {
-    window.open(url, '_blank');
-  }
-}
-
-async function checkUpdates({ manual = false, spinner = true } = {}) {
-  if (updateState.busy) return;
-  updateState.busy = true;
-  if (spinner) {
-    updateState.status = 'checking';
-    paintUpdateRow();
-  }
-  try {
-    const latest = await fetchLatest();
-    writeCache(UPDATE_KEY, latest);
-    const newer = compareVersions(latest.version, appSystemizer.version) > 0;
-    updateState.latest = latest;
-    updateState.status = newer ? 'available' : 'latest';
-    paintUpdateRow();
-    if (manual) {
-      if (newer) openUpdateDialog(latest);
-      else toast(`已是最新版本 ${appSystemizer.version}`);
-    }
-  } catch (error) {
-    updateState.status = 'error';
-    paintUpdateRow();
-    if (manual) toast('检查更新失败，请检查网络后重试');
-  } finally {
-    updateState.busy = false;
-  }
-}
-
-function initUpdates() {
-  const cached = readCache(UPDATE_KEY);
-  if (cached) {
-    updateState.latest = cached.latest;
-    updateState.status = compareVersions(cached.latest.version, appSystemizer.version) > 0 ? 'available' : 'latest';
-    paintUpdateRow();
-  }
-  // 缓存 12 小时内直接复用，过期就静默刷新一次。
-  if (!cached || Date.now() - cached.at > UPDATE_TTL) {
-    void checkUpdates({ spinner: !cached });
-  }
-
-  $('#update-row').addEventListener('click', () => {
-    if (updateState.status === 'available' && updateState.latest) {
-      openUpdateDialog(updateState.latest);
-      return;
-    }
-    void checkUpdates({ manual: true });
-  });
-  $('#update-later').addEventListener('click', () => $('#update-dialog').close());
-  $('#update-open').addEventListener('click', () => {
-    const latest = updateState.latest;
-    $('#update-dialog').close();
-    if (latest && latest.url) openExternal(latest.url);
-  });
-  wireModalDismiss($('#update-dialog'));
 }
 
 const TAB_TITLES = { apps: '系统应用转换', logs: '运行日志', settings: '设置' };
@@ -923,7 +823,6 @@ wireModalDismiss($('#confirm-dialog'));
 $('#info-version').textContent = appSystemizer.version;
 $('#info-data-dir').textContent = `/data/adb/${appSystemizer.id}`;
 initThemeSheet();
-initUpdates();
 initSettings();
 initSystemColors();
 initTargetSegments();

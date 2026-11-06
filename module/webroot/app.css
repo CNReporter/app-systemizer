@@ -632,19 +632,6 @@ svg { display: block; }
 
 .nav-tab[aria-current="page"] .nav-tab__pill { background: var(--md-secondary-container); }
 
-.nav-tab.has-update .nav-tab__pill { position: relative; }
-
-.nav-tab.has-update .nav-tab__pill::after {
-  content: "";
-  position: absolute;
-  top: 3px;
-  right: 9px;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--md-error);
-}
-
 .nav-tab svg { width: 24px; height: 24px; fill: currentColor; }
 
 .nav-tab__label { font-size: 12px; line-height: 16px; letter-spacing: .5px; font-weight: 500; }
@@ -956,30 +943,6 @@ svg { display: block; }
 }
 
 .chev { width: 24px; height: 24px; fill: var(--md-on-surface-variant); margin-right: -8px; flex: none; }
-
-.setting__icon {
-  width: 24px;
-  height: 24px;
-  flex: none;
-  display: grid;
-  place-items: center;
-  color: var(--md-on-surface-variant);
-}
-
-.setting__icon svg { width: 24px; height: 24px; fill: currentColor; }
-
-.update-value {
-  font-size: 12px;
-  line-height: 16px;
-  letter-spacing: .3px;
-  color: var(--md-on-surface-variant);
-  white-space: nowrap;
-}
-
-.update-value[data-state="available"] { color: var(--md-primary); font-weight: 600; }
-.update-value[data-state="error"] { color: var(--md-error); }
-
-.setting + .info { border-top: 1px solid var(--md-outline-variant); }
 
 .switch { position: relative; flex: none; width: 52px; height: 32px; }
 
@@ -1321,23 +1284,6 @@ svg { display: block; }
 .confirm-line__target { font-size: 10px; line-height: 14px; letter-spacing: .4px; color: var(--md-on-surface-variant); flex: none; }
 
 .modal__warn { font-size: 12px; line-height: 17px; letter-spacing: .2px; color: var(--md-on-surface-variant); margin-top: 14px; }
-
-.modal__notes {
-  margin: 12px 0 0;
-  padding: 12px;
-  max-height: 176px;
-  overflow: auto;
-  border-radius: 12px;
-  background: var(--md-surface-container);
-  color: var(--md-on-surface-variant);
-  font-family: var(--font-sans);
-  font-size: 12px;
-  line-height: 18px;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.modal__notes:empty { display: none; }
 
 .modal__error {
   margin: 12px 0 0;

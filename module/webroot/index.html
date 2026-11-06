@@ -152,17 +152,6 @@
 
           <h2 class="group">关于</h2>
           <section class="card">
-            <button id="update-row" class="setting" type="button">
-              <span class="setting__icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24"><path d="M12 3a1 1 0 0 1 1 1v9.59l3.3-3.3a1 1 0 0 1 1.4 1.42l-5 5a1 1 0 0 1-1.4 0l-5-5a1 1 0 0 1 1.4-1.42l3.3 3.3V4a1 1 0 0 1 1-1Zm-8 15a1 1 0 0 1 1 1v1h14v-1a1 1 0 1 1 2 0v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1a1 1 0 0 1 1-1Z"/></svg>
-              </span>
-              <span class="setting__text">
-                <span class="setting__title">检查更新</span>
-                <span class="setting__sub" id="update-sub">当前版本 —</span>
-              </span>
-              <span class="update-value" id="update-value">检查中…</span>
-              <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.29 6.71a1 1 0 0 0 0 1.41L13.17 12l-3.88 3.88a1 1 0 1 0 1.42 1.41l4.58-4.58a1 1 0 0 0 0-1.42L10.7 6.7a1 1 0 0 0-1.41 0Z"/></svg>
-            </button>
             <div class="info"><span class="info__k">元模块</span><span class="info__v" id="info-metamodule">—</span></div>
             <div class="info"><span class="info__k">数据目录</span><span class="info__v mono" id="info-data-dir">/data/adb/app-systemizer</span></div>
             <div class="info"><span class="info__k">选择清单</span><span class="info__v mono">config/selections.tsv</span></div>
@@ -191,7 +180,7 @@
         <span class="nav-tab__pill"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Zm2 16H8v-2h8v2Zm0-4H8v-2h8v2Zm-3-5V3.5L18.5 9H13Z"/></svg></span>
         <span class="nav-tab__label">日志</span>
       </button>
-      <button class="nav-tab" id="nav-settings" type="button" data-tab="settings" aria-label="设置">
+      <button class="nav-tab" type="button" data-tab="settings" aria-label="设置">
         <span class="nav-tab__pill"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.5.5 0 0 0 .12-.61l-1.92-3.32a.5.5 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.48.48 0 0 0-.48-.41h-3.84c-.24 0-.44.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.5.5 0 0 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.5.5 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.5.5 0 0 0-.12-.61zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z"/></svg></span>
         <span class="nav-tab__label">设置</span>
       </button>
@@ -265,21 +254,6 @@
         <div class="sheet__actions">
           <button class="text-btn" id="theme-system" type="button">使用系统取色</button>
           <button class="filled-btn" id="theme-apply" type="button">应用主题色</button>
-        </div>
-      </div>
-    </dialog>
-
-    <dialog id="update-dialog" class="modal" aria-labelledby="update-title">
-      <div class="modal__inner">
-        <span class="modal__icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24"><path d="M12 3a1 1 0 0 1 1 1v9.59l3.3-3.3a1 1 0 0 1 1.4 1.42l-5 5a1 1 0 0 1-1.4 0l-5-5a1 1 0 0 1 1.4-1.42l3.3 3.3V4a1 1 0 0 1 1-1Zm-8 15a1 1 0 0 1 1 1v1h14v-1a1 1 0 1 1 2 0v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1a1 1 0 0 1 1-1Z"/></svg>
-        </span>
-        <h2 class="modal__title" id="update-title">发现新版本</h2>
-        <p class="modal__body" id="update-meta"></p>
-        <pre class="modal__notes" id="update-notes"></pre>
-        <div class="modal__actions">
-          <button id="update-later" class="text-btn" type="button">稍后</button>
-          <button id="update-open" class="text-btn text-btn--strong" type="button">前往下载</button>
         </div>
       </div>
     </dialog>

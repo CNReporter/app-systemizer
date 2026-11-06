@@ -11,7 +11,7 @@
 - **设置页**：自定义主题色、日志开关、检查更新、模块信息。
 - **Material 3 界面**：跟随系统深浅色，并读取 KernelSU / Android 的动态取色；没有动态取色时回落到 M3 基线色板。
 - **主题色**：设置 → 外观 → 主题色，输入六位色号或选预设，整套界面按这颗种子色重新派生。
-- **检查更新**：读取 GitHub 最新 Release，有新版本时在设置页提示并弹窗展示更新说明，可直接跳转下载。
+- **检查更新**：`module.prop` 里带 `updateJson`，每次发版会把 `update.json` 作为 Release 附件上传；KernelSU 管理器据此在模块卡片右下角（卸载按钮左边）显示更新按钮，点一下直接升级。
 
 ## 工作方式
 
@@ -43,7 +43,7 @@
 
 版本号只在 `package.json` 维护（SemVer）；`versionCode` 由 `MAJOR×1000000 + MINOR×1000 + PATCH` 换算，安装器靠它判断升级。
 
-发版是 tag 驱动的：改 `package.json` 的版本 → 在 `CHANGELOG.md` 写一节 `## <version>` → 提交 → 打 tag `v<version>` 并推送。`.github/workflows/release.yml` 会校验 tag 与版本一致，构建 zip，用 CHANGELOG 对应小节当正文创建 Release。
+发版是 tag 驱动的：改 `package.json` 的版本 → 在 `CHANGELOG.md` 写一节 `## <version>` → 提交 → 打 tag `v<version>` 并推送。`.github/workflows/release.yml` 会校验 tag 与版本一致，构建 zip，用 CHANGELOG 对应小节当正文创建 Release，同时生成 `update.json`（version / versionCode / zipUrl / changelog）一并上传，供管理器检查更新。
 
 ## 目录
 

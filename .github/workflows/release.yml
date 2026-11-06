@@ -51,6 +51,27 @@ jobs:
       - name: Build module zip
         run: npm run package
 
+      - name: Write update.json
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          node -e '
+            const fs = require("fs");
+            const tag = process.env.TAG;
+            const version = tag.replace(/^v/, "");
+            const [major, minor, patch] = version.split(".").map(Number);
+            const repo = process.env.GITHUB_REPOSITORY;
+            const update = {
+              version,
+              versionCode: major * 1000000 + minor * 1000 + patch,
+              zipUrl: `https://github.com/${repo}/releases/download/${tag}/App-Systemizer-KSU-${tag}.zip`,
+              changelog: `https://github.com/${repo}/releases/tag/${tag}`,
+            };
+            fs.writeFileSync("dist/update.json", JSON.stringify(update, null, 2) + "\n");
+          '
+          cat dist/update.json
+
       - name: Extract release notes
         env:
           TAG: ${{ inputs.tag || github.ref_name }}
@@ -78,19 +99,20 @@ jobs:
           set -euo pipefail
           title="App Systemizer ${TAG#v}"
           notes=/tmp/notes.md
-          ls -l dist/*.zip
+          assets=(dist/*.zip dist/update.json)
+          ls -l "${assets[@]}"
           if gh release view "$TAG" >/dev/null 2>&1; then
             # 已存在就覆盖附件，方便补发；有说明才覆盖正文
-            gh release upload "$TAG" dist/*.zip --clobber
+            gh release upload "$TAG" "${assets[@]}" --clobber
             if [ -f "$notes" ]; then
               gh release edit "$TAG" --title "$title" --notes-file "$notes"
             else
               gh release edit "$TAG" --title "$title"
             fi
           elif [ -f "$notes" ]; then
-            gh release create "$TAG" dist/*.zip --verify-tag --title "$title" --notes-file "$notes"
+            gh release create "$TAG" "${assets[@]}" --verify-tag --title "$title" --notes-file "$notes"
           else
-            gh release create "$TAG" dist/*.zip --verify-tag --title "$title" --generate-notes
+            gh release create "$TAG" "${assets[@]}" --verify-tag --title "$title" --generate-notes
           fi
           gh release view "$TAG" --json url,assets \
             --jq '.url, (.assets[] | "asset: \(.name) \(.size)B")'

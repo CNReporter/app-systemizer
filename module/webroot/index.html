@@ -6,7 +6,7 @@
     <meta name="color-scheme" content="light dark">
     <title>系统应用转换</title>
     <link rel="stylesheet" href="/internal/insets.css">
-    <link rel="stylesheet" href="app.css?v=1.6.2">
+    <link rel="stylesheet" href="app.css?v=1.6.3">
   </head>
   <body data-tab="apps">
     <header class="top-bar" data-scrolled="false">
@@ -38,12 +38,15 @@
             </div>
           </section>
 
-          <label class="search">
-            <svg class="search__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5Zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14Z"/></svg>
-            <input id="search" type="search" placeholder="搜索名称或包名" autocomplete="off" aria-label="搜索应用">
-          </label>
+          <div class="tool-card">
+            <label class="search">
+              <svg class="search__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5Zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14Z"/></svg>
+              <input id="search" type="search" placeholder="搜索应用" autocomplete="off" aria-label="搜索名称或包名">
+            </label>
 
-          <div class="select-wrap">
+            <div class="tool-card__divider" aria-hidden="true"></div>
+
+            <div class="select-wrap">
             <button id="target-select" class="select" type="button" aria-haspopup="listbox"
               aria-expanded="false" aria-controls="target-menu">
               <span class="select__text">
@@ -62,6 +65,7 @@
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
               </button>
             </div>
+          </div>
           </div>
 
           <div class="list-head">
@@ -308,6 +312,6 @@
       </div>
     </dialog>
 
-    <script type="module" src="bundle.js?v=1.6.2"></script>
+    <script type="module" src="bundle.js?v=1.6.3"></script>
   </body>
 </html>

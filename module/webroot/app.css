@@ -453,6 +453,20 @@ svg { display: block; }
 
 /* ---------------------------------------------------------- 下拉选择器 */
 
+/* 搜索与安装位置共用一张工具卡，圆角只由外层决定 */
+.tool-card {
+  margin-top: 8px;
+  border-radius: 16px;
+  background: var(--md-surface-container-high);
+}
+
+.tool-card .search { margin: 0; background: transparent; border-radius: 0; height: 56px; }
+.tool-card .select { background: transparent; border-radius: 0; height: 56px; }
+.tool-card .select-wrap { margin: 0; }
+.tool-card .menu { left: 8px; right: 8px; width: auto; }
+
+.tool-card__divider { height: 1px; margin: 0 16px; background: var(--md-outline-variant); }
+
 .select-wrap { position: relative; margin-top: 8px; flex: none; }
 
 .select {

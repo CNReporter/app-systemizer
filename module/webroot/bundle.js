@@ -80,8 +80,8 @@ function getPackagesInfo(packages) {
 var module_info_default = {
   id: "app-systemizer",
   name: "App Systemizer",
-  version: "1.6.0",
-  versionCode: 1006e3
+  version: "1.6.1",
+  versionCode: 1006001
 };
 
 // module/webroot/system-colors.js

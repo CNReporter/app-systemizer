@@ -1,7 +1,7 @@
 id=app-systemizer
 name=App Systemizer
-version=1.6.0
-versionCode=1006000
+version=1.6.1
+versionCode=1006001
 author=Leon
 description=通过挂载机制将选定应用转为系统应用。当前已挂载:[]。
 updateJson=https://github.com/CNReporter/app-systemizer/releases/latest/download/update.json

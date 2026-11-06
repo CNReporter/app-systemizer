@@ -33,7 +33,7 @@
 
 ## 兼容性
 
-只在作者的两台 Android 17 / HyperOS 4 设备上测试过，推荐使用 ReSukiSU。其他 KernelSU 分支或 Android 版本未验证。
+只在作者的两台 Android 17 / HyperOS 4 设备上测试过，推荐使用 ReSukiSU 和 SukiSU。其他 KernelSU 分支或 Android 版本未验证。
 
 ## 开发
 
